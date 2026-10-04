@@ -21,7 +21,7 @@ log = logging.getLogger("trail.http")
 app = FastAPI(title="Trail Hub API", version=VERSION,
               description="Cross-institution scam-trail intelligence. Every action is proposed by the system and approved by a human.",
               docs_url=None if cfg.is_production else "/docs", redoc_url=None, openapi_url=None if cfg.is_production else "/openapi.json")
-app.add_middleware(CORSMiddleware, allow_origins=list(cfg.cors_origins), allow_methods=["GET", "POST"],
+app.add_middleware(CORSMiddleware, allow_origins=list(cfg.cors_origins) + ([] if cfg.is_production else ["null", "http://127.0.0.1:8000"]), allow_methods=["GET", "POST"],
                    allow_headers=["X-API-Key", "X-Institution-Id", "Content-Type"])
 
 

@@ -37,10 +37,10 @@ table{width:100%;border-collapse:collapse;font-size:12px}td,th{border-bottom:1px
 <script>
 const ACT={A1:"Monitor 24h",A2:"Hold (lower bound)",A3:"Extend to upper bound",A4:"Full freeze",A5:"Verification outreach"};
 const COL={CRITICAL:"#ff4d6d",HIGH:"#ff7a45",MEDIUM:"#f5a524",LOW:"#2ecc8f"};
-const $=id=>document.getElementById(id);let key=sessionStorage.getItem("trail_key")||"",cur=null,view="trail",cy=null,detail=null;
+const API=location.protocol==="file:"?"http://localhost:8000":"";const $=id=>document.getElementById(id);let key=sessionStorage.getItem("trail_key")||"",cur=null,view="trail",cy=null,detail=null;
 const inr=n=>"₹"+Math.round(n).toLocaleString("en-IN");
 function toast(m,bad){const t=$("toast");t.textContent=m;t.style.borderColor=bad?"#ff4d6d":"#5b8cff";t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",5000)}
-async function api(path,opt={}){const r=await fetch(path,{...opt,headers:{"X-API-Key":key,"Content-Type":"application/json"}});
+async function api(path,opt={}){let r;try{r=await fetch(API+path,{...opt,headers:{"X-API-Key":key,"Content-Type":"application/json"}})}catch(_){throw new Error("Cannot reach the Trail hub at "+(API||location.origin)+". Start it with: python scripts/seed_sandbox.py")}
  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(typeof j.detail==="string"?j.detail:JSON.stringify(j.detail||j));return j}
 async function queue(){try{const cs=await api("/cases");$("queue").innerHTML=cs.map(c=>`<div class="card ${c.case_id===cur?"sel":""}" onclick="open('${c.case_id}')"><b>${c.case_id}</b> <span class="tag ${c.risk_level}">${c.risk_level||"—"}</span>
  <div class="mu">${c.potentially_traceable?inr(c.potentially_traceable)+" traceable · ":""}${c.n_institutions||0} inst · ${c.n_hops||0} hops</div><div class="mu">${c.status}</div></div>`).join("")||"<p class=mu>No cases</p>";return cs}catch(e){$("queue").innerHTML=`<p class=bad>${e.message}</p>`}}
@@ -83,7 +83,7 @@ async function signIn(k){key=k;try{const cs=await api("/cases");sessionStorage.s
  catch(e){key="";sessionStorage.removeItem("trail_key");$("login").style.display="grid";$("lerr").textContent=/401/.test(e.message)||/Invalid/.test(e.message)?"Invalid API key":e.message}}
 $("go").onclick=()=>signIn($("ak").value);$("ak").onkeydown=e=>e.key==="Enter"&&signIn($("ak").value);
 $("lo").onclick=()=>{sessionStorage.removeItem("trail_key");key="";cur=null;$("queue").innerHTML="";$("login").style.display="grid"};
-fetch("/meta").then(r=>r.json()).then(m=>{if(m.environment!=="production"){$("env").textContent=m.environment;$("env").style.display="";
+fetch(API+"/meta").then(r=>r.json()).then(m=>{if(m.environment!=="production"){$("env").textContent=m.environment;$("env").style.display="";
  $("sb").innerHTML='<div class="mu" style="margin-bottom:6px">Sandbox accounts</div>'+m.sandbox_accounts.map(a=>`<button style="width:100%;margin-bottom:4px" onclick="signIn('${a.key}')">${a.label}</button>`).join("")}});
 key?signIn(key):$("login").style.display="grid";
 </script></body></html>
