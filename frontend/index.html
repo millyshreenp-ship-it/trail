@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trail · Investigator Console</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+<style>
+:root{--bg:#0f1420;--pn:#171e2e;--ln:#26304a;--tx:#e6ebf5;--mu:#8a96b0;--ac:#5b8cff;--ok:#2ecc8f;--wa:#f5a524;--hi:#ff7a45;--cr:#ff4d6d}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px system-ui,sans-serif;height:100vh;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--ln);background:var(--pn)}
+header b{font-size:16px;letter-spacing:.5px}header small{color:var(--mu)}header .sp{flex:1}
+select,button{background:#1f2840;color:var(--tx);border:1px solid var(--ln);border-radius:6px;padding:6px 10px;font:inherit;cursor:pointer}
+button:hover{border-color:var(--ac)}button.p{background:var(--ac);border-color:var(--ac)}button.g{background:#1d6b50;border-color:var(--ok)}button.r{background:#6b2a38;border-color:var(--cr)}button.on{border-color:var(--ac);background:#243460}
+main{flex:1;display:grid;grid-template-columns:270px 1fr 400px;min-height:0}
+section{border-right:1px solid var(--ln);padding:12px;overflow:auto;min-height:0}section:last-child{border:0}
+h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--mu)}
+.card{background:var(--pn);border:1px solid var(--ln);border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer}.card.sel{border-color:var(--ac)}
+.tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.CRITICAL{background:var(--cr)}.HIGH{background:var(--hi)}.MEDIUM{background:var(--wa);color:#222}.LOW{background:var(--ok);color:#222}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}.kv div{background:var(--pn);border:1px solid var(--ln);border-radius:6px;padding:6px 8px}.kv b{display:block;font-size:16px}.kv span{color:var(--mu);font-size:11px}
+#cy{height:420px;background:var(--pn);border:1px solid var(--ln);border-radius:8px}
+.mu{color:var(--mu)}.why li{margin:3px 0}.ok{color:var(--ok)}.bad{color:var(--cr)}
+.prop{background:var(--pn);border:1px solid var(--ln);border-radius:8px;padding:10px;margin-bottom:8px}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}code{background:#0b0f19;padding:1px 5px;border-radius:4px;font-size:12px}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#243460;border:1px solid var(--ac);padding:10px 16px;border-radius:8px;display:none;max-width:70vw}
+table{width:100%;border-collapse:collapse;font-size:12px}td,th{border-bottom:1px solid var(--ln);padding:4px;text-align:left}
+</style></head><body>
+<header><b>TRAIL</b><small>Investigator Console</small><span class="tag LOW" id="env" style="display:none"></span><span class="sp"></span>
+<span class="mu" id="who"></span><select id="role" style="display:none"></select><button id="lo">Sign out</button><button id="vb">Verify audit chain</button></header>
+<main>
+<section><h3>Case queue</h3><div id="queue"></div></section>
+<section id="mid"><div id="head"></div>
+<div class="row" style="margin:0 0 8px"><button id="vt" class="on">Trail view (all institutions)</button><button id="vs">Siloed view (one bank)</button>
+<select id="inst" style="display:none"></select></div>
+<div id="cy"></div><p id="gnote" class="mu"></p>
+<h3 style="margin-top:14px">Audit trail</h3><div id="audit"></div></section>
+<section id="right"><p class="mu">Select a case.</p></section>
+</main><div id="login" style="position:fixed;inset:0;background:var(--bg);display:none;place-items:center;z-index:9"><div class="card" style="width:340px;cursor:default"><h2 style="margin:0 0 4px">TRAIL</h2><p class="mu" style="margin:0 0 12px">Sign in with your API key</p><input id="ak" type="password" placeholder="API key" style="width:100%;padding:8px;background:#0b0f19;color:var(--tx);border:1px solid var(--ln);border-radius:6px;margin-bottom:8px"><button class="p" id="go" style="width:100%">Sign in</button><div id="sb" style="margin-top:12px"></div><p id="lerr" class="bad"></p></div></div><div id="toast"></div>
+<script>
+const ACT={A1:"Monitor 24h",A2:"Hold (lower bound)",A3:"Extend to upper bound",A4:"Full freeze",A5:"Verification outreach"};
+const COL={CRITICAL:"#ff4d6d",HIGH:"#ff7a45",MEDIUM:"#f5a524",LOW:"#2ecc8f"};
+const $=id=>document.getElementById(id);let key=sessionStorage.getItem("trail_key")||"",cur=null,view="trail",cy=null,detail=null;
+const inr=n=>"₹"+Math.round(n).toLocaleString("en-IN");
+function toast(m,bad){const t=$("toast");t.textContent=m;t.style.borderColor=bad?"#ff4d6d":"#5b8cff";t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",5000)}
+async function api(path,opt={}){const r=await fetch(path,{...opt,headers:{"X-API-Key":key,"Content-Type":"application/json"}});
+ const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(typeof j.detail==="string"?j.detail:JSON.stringify(j.detail||j));return j}
+async function queue(){try{const cs=await api("/cases");$("queue").innerHTML=cs.map(c=>`<div class="card ${c.case_id===cur?"sel":""}" onclick="open('${c.case_id}')"><b>${c.case_id}</b> <span class="tag ${c.risk_level}">${c.risk_level||"—"}</span>
+ <div class="mu">${c.potentially_traceable?inr(c.potentially_traceable)+" traceable · ":""}${c.n_institutions||0} inst · ${c.n_hops||0} hops</div><div class="mu">${c.status}</div></div>`).join("")||"<p class=mu>No cases</p>";return cs}catch(e){$("queue").innerHTML=`<p class=bad>${e.message}</p>`}}
+async function open(id){cur=id;queue();try{detail=await api("/cases/"+id)}catch(e){return toast(e.message,1)}
+ const c=detail.card,cs=detail.case;
+ $("head").innerHTML=`<h2 style="margin:0 0 4px">${c.case_id} <span class="tag ${c.risk_level}">${c.risk_level}</span></h2>
+ <div class="mu">${cs.status} · golden window ends ${new Date(c.golden_window_expires_at).toLocaleTimeString()} · onward sharing ${detail.onward_sharing_allowed?'<span class=ok>allowed (two-key met)</span>':'<span class=bad>blocked</span>'}</div>
+ <div class="kv"><div><b>${inr(c.potentially_traceable||0)}</b><span>potentially traceable</span></div><div><b>${c.n_institutions} institutions · ${c.n_hops} hops</b><span>${c.pattern}</span></div>
+ <div><b>${c.high_risk_receivers} high-risk</b><span>${c.likely_legitimate} likely legitimate</span></div><div><b>${Math.round((c.confidence||0)*100)}%</b><span>confidence · rec. ${c.recommended_action} ${c.recommended_action_label||""}</span></div></div>`;
+ const insts=cs.ring?cs.ring.institutions:[];$("inst").innerHTML=insts.map(i=>`<option>${i}</option>`).join("");
+ drawGraph();renderRight();loadAudit()}
+async function drawGraph(){if(!cur)return;let q=`/graph/${cur}?view=${view}`;if(view==="siloed")q+="&institution="+$("inst").value;
+ try{const g=await api(q);if(cy)cy.destroy();
+ cy=cytoscape({container:$("cy"),elements:[...g.nodes,...g.edges],layout:{name:"breadthfirst",directed:true,spacingFactor:1.3,padding:30},
+ style:[{selector:"node",style:{label:"data(label)",color:"#e6ebf5","font-size":11,"text-valign":"bottom","text-margin-y":6,width:38,height:38,"background-color":n=>COL[n.data("risk_level")]||"#888","border-width":n=>n.data("receiver_class")==="legitimate_receiver"?4:0,"border-color":"#2ecc8f"}},
+ {selector:"edge",style:{width:2,"line-color":"#5b6b92","target-arrow-color":"#5b6b92","target-arrow-shape":"triangle","curve-style":"bezier"}}]});
+ cy.on("tap","node",e=>{const d=e.target.data();toast(`${d.label}: ${inr(d.tainted_lo)} tainted · ${d.minutes_since_seed} min from seed · ${d.receiver_class}. ${(d.reasons||[]).join("; ")}`)});
+ $("gnote").textContent=view==="siloed"?`${$("inst").value} alone sees ${g.nodes.length} of ${g.nodes.length+g.hidden_hops} hops — the ring is invisible from one silo.`:"Green ring = likely legitimate receiver (verification, not a freeze). Click a node for detail."}catch(e){toast(e.message,1)}}
+$("vt").onclick=()=>{view="trail";$("inst").style.display="none";$("vt").className="on";$("vs").className="";drawGraph()};
+$("vs").onclick=()=>{view="siloed";$("inst").style.display="";$("vs").className="on";$("vt").className="";drawGraph()};$("inst").onchange=drawGraph;
+function renderRight(){const cs=detail.case,hops=cs.ring?cs.ring.hops:[];
+ let h=`<h3>Why flagged</h3><ul class="why">`+(cs.ring?cs.ring.reasons.map(r=>`<li>✓ ${r}</li>`).join(""):"")+"</ul>"+
+ hops.map(p=>`<div class="mu" style="margin:4px 0"><span class="tag ${p.risk_level}">${p.risk_level}</span> <b>${p.institution}</b> · ${inr(p.tainted_amount_lo)}–${inr(p.tainted_amount_hi)} · ${p.receiver_class.replace("_"," ")}<br>${p.reasons.map(r=>"• "+r).join("<br>")}</div>`).join("");
+ h+=`<h3 style="margin-top:14px">Proposed actions (human decision required)</h3>`;
+ h+=cs.proposals.map(p=>{const s=detail.proposal_states[p.proposal_id],hp=hops.find(x=>x.hop_index===p.hop_index);
+  return `<div class="prop"><b>${p.action}</b> ${ACT[p.action]||""} → ${hp.institution} (hop ${p.hop_index})<div class="mu">reason <code>${p.reason_code}</code> · ${p.duration_hours}h${p.amount_cap?" · cap "+inr(p.amount_cap):""} · <b>${s}</b></div>
+  <div class="mu" style="margin-top:4px">${p.rationale}</div>${s==="PENDING"?`<div class="row"><button class="g" onclick="decide('${p.proposal_id}','approve')">Approve</button><button class="r" onclick="decide('${p.proposal_id}','reject')">Reject</button><button onclick="decide('${p.proposal_id}','escalate')">Escalate</button></div>`:""}</div>`}).join("")||"<p class=mu>None</p>";
+ h+=`<h3 style="margin-top:14px">Time-limited orders</h3>`+(cs.orders.length?cs.orders.map(o=>`<div class="prop"><b>${o.action}</b> at ${o.institution} · <b>${o.status}</b><div class="mu">audit <code>${o.audit_id}</code><br>reason <code>${o.reason_code}</code><br>expires ${new Date(o.expires_at).toLocaleString()}<br>approved by ${o.approved_by.join(", ")}<br>${o.execution||"institution executes; nothing frozen automatically"}</div></div>`).join(""):"<p class=mu>None yet. Nothing is ever frozen automatically.</p>");
+ $("right").innerHTML=h}
+async function decide(pid,d){const note=prompt(`${d.toUpperCase()} — add a note (optional)`);if(note===null)return;
+ try{const r=await api(`/cases/${cur}/proposals/${pid}/decision`,{method:"POST",body:JSON.stringify({decision:d,note})});
+  toast(r.proposal_state==="APPROVED"?`Approved. Audit ${r.audit_id} · reason ${r.reason_code} · expires ${new Date(r.expires_at).toLocaleString()}`:`${d}: ${r.proposal_state}${r.approvals_so_far?" · approvals so far: "+r.approvals_so_far.join(", "):""} · audit ${r.audit_id}`)}
+ catch(e){toast(e.message,1)}open(cur)}
+async function loadAudit(){try{const a=await api("/audit"+(cur?"?subject="+cur:""));
+ $("audit").innerHTML="<table><tr><th>#</th><th>audit id</th><th>actor</th><th>event</th><th>reason</th></tr>"+a.slice(-12).reverse().map(e=>`<tr><td>${e.seq}</td><td><code>${e.audit_id}</code></td><td>${e.actor} (${e.role})</td><td>${e.action}</td><td>${e.reason_code||""}</td></tr>`).join("")+"</table>"}
+ catch(e){$("audit").innerHTML=`<p class="mu">Audit log needs the auditor role (${e.message}).</p>`}}
+$("vb").onclick=async()=>{try{const v=await api("/audit/verify");toast(v.chain_intact?`Audit chain intact (${v.entries} entries)`:`TAMPERING at entry ${v.first_bad_seq}`,!v.chain_intact)}catch(e){toast("Audit verification requires the auditor role",1)}};
+async function signIn(k){key=k;try{const cs=await api("/cases");sessionStorage.setItem("trail_key",k);$("login").style.display="none";
+ $("who").textContent="Signed in";$("lerr").textContent="";cur=null;queue().then(c=>c&&c[0]&&open(c[0].case_id));loadAudit()}
+ catch(e){key="";sessionStorage.removeItem("trail_key");$("login").style.display="grid";$("lerr").textContent=/401/.test(e.message)||/Invalid/.test(e.message)?"Invalid API key":e.message}}
+$("go").onclick=()=>signIn($("ak").value);$("ak").onkeydown=e=>e.key==="Enter"&&signIn($("ak").value);
+$("lo").onclick=()=>{sessionStorage.removeItem("trail_key");key="";cur=null;$("queue").innerHTML="";$("login").style.display="grid"};
+fetch("/meta").then(r=>r.json()).then(m=>{if(m.environment!=="production"){$("env").textContent=m.environment;$("env").style.display="";
+ $("sb").innerHTML='<div class="mu" style="margin-bottom:6px">Sandbox accounts</div>'+m.sandbox_accounts.map(a=>`<button style="width:100%;margin-bottom:4px" onclick="signIn('${a.key}')">${a.label}</button>`).join("")}});
+key?signIn(key):$("login").style.display="grid";
+</script></body></html>

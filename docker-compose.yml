@@ -1,0 +1,13 @@
+services:
+  hub:
+    build: .
+    ports: ["8000:8000"]
+    env_file: .env
+    environment:
+      TRAIL_AUDIT_PATH: /data/audit.jsonl
+    volumes: ["trail-data:/data"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    restart: unless-stopped
+volumes:
+  trail-data:
