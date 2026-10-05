@@ -1,22 +1,15 @@
 """Detection & scam intelligence (Khanak).
 
-Part 1 (this module set): features + local risk scoring.
-Graph / ring detection land in graph.py in a later slice.
+Part 1: features + local risk scoring.
+Part 2: NetworkX lineage, pattern detection, ring cases, evaluation.
 """
 from app.detection.features import (
     FEATURE_NAMES,
-    compute_account_features,
+    compute_features,
     compute_features_batch,
-    feature_vector,
 )
-from app.detection.scorer import RiskResult, RiskScorer, default_scorer
-
-__all__ = [
-    "FEATURE_NAMES",
-    "compute_account_features",
-    "compute_features_batch",
-    "feature_vector",
-    "RiskResult",
-    "RiskScorer",
-    "default_scorer",
-]
+from app.detection.scorer import (
+    RiskResult,
+    score_transactions,
+    score_transaction_window,
+)
