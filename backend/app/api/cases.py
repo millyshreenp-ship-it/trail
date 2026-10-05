@@ -55,10 +55,23 @@ def try_detect(st: HubState, case: Case) -> bool:
 
 def attach_ring(st: HubState, case: Case, ring: RingRecord, actor: tuple[str, str]) -> None:
     case.ring = ring
-    existing = {(p.hop_index, p.action) for p in case.proposals if proposal_state(case, p) == "PENDING"}
-    for p in default_proposals(st, case):
-        if (p.hop_index, p.action) not in existing and p.action not in (ActionCode.A0, ActionCode.A1):
-            case.proposals.append(p)  # A0/A1 are not auto-issued from engine output; analyst proposes them
+    # Refresh engine recommendations when a ring is (re)attached so amount caps and
+    # reason codes track the latest detection output (manual POST or try_detect).
+    fresh = [p for p in default_proposals(st, case) if p.action not in (ActionCode.A0, ActionCode.A1)]
+    fresh_keys = {(p.hop_index, p.action) for p in fresh}
+    kept = []
+    for p in case.proposals:
+        if proposal_state(case, p) != "PENDING":
+            kept.append(p)  # never drop decided proposals
+            continue
+        if (p.hop_index, p.action) in fresh_keys and p.proposed_by == "trail-engine":
+            continue  # replace stale engine proposal with the refreshed one
+        kept.append(p)
+    existing = {(p.hop_index, p.action) for p in kept if proposal_state(case, p) == "PENDING"}
+    for p in fresh:
+        if (p.hop_index, p.action) not in existing:
+            kept.append(p)
+    case.proposals = kept
     case.status = CaseStatus.UNDER_REVIEW if case.proposals else CaseStatus.OPEN
     st.audit.append(actor[0], actor[1], "RING_ATTACHED", case.case_id,
                     details={"pattern": ring.pattern, "hops": ring.n_hops,
