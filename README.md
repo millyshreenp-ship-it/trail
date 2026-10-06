@@ -31,6 +31,15 @@ API reference: `/docs` (disabled when `TRAIL_ENV=production`). Health: `/healthz
 | Investigator console (queue, trail/siloed graph, explainability, decisions, audit) | `frontend/` |
 | Config validation, request IDs, security headers, CI, Docker | `config.py`, `main.py`, `.github/`, `Dockerfile` |
 
+## Detection & evaluation (Khanak workstream)
+```
+make evaluate     # generate the synthetic corpus, run siloed-vs-Trail, write docs/evaluation.md
+```
+- `backend/app/simulator/` — 5,000+ legitimate and 500+ suspicious transactions: chain, fan-out, fan-in, cross-bank hop, plus legitimate lookalikes (shared devices, student rent, shopkeeper, refunds, gig worker, high-volume business). `generate_dataset()` also returns `ring_meta` ground truth.
+- `backend/app/detection/` — features, explainable scorer, lineage graph, ring detection, receiver classification, `evaluation.py` (B0 vs Trail).
+- `notebooks/` — 01 feature analysis, 02 rule-vs-LightGBM comparison, 03 graph + evaluation (`pip install jupyter matplotlib pandas scikit-learn lightgbm` to run).
+- Results: [`docs/evaluation.md`](docs/evaluation.md). Synthetic data only; numbers describe the simulator, not production.
+
 ## Configuration
 See `.env.example`. With `TRAIL_ENV=production` the service refuses to start without a strong master secret, hashed user keys (`TRAIL_USERS_JSON`), a durable audit path and non-localhost CORS origins; sandbox accounts and API docs are disabled.
 
