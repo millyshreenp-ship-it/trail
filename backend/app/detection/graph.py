@@ -18,10 +18,12 @@ from app.detection.lineage import (
     build_transaction_graph,
     fanin_centers,
     fanout_centers,
+    forwards_promptly,
     institutions_on_path,
     longest_path_from,
     minutes_between,
     subgraph_from_seed,
+    subgraph_with_cofeeders,
 )
 from app.detection.receiver import classify_receiver, structural_risk_from_graph
 from app.detection.scorer import RiskScorer
@@ -58,7 +60,10 @@ def detect_pattern(G: nx.DiGraph, seed: str) -> tuple[str, list[str], list[tuple
 
     sub = subgraph_from_seed(G, seed)
     fo = fanout_centers(sub, min_out=3)
-    fi = fanin_centers(sub, min_in=3)
+    # Fan-in: the co-feeding senders are NOT descendants of the seed, so look at the
+    # seed's reachable set plus the direct predecessors of every reachable node.
+    fi_view = subgraph_with_cofeeders(G, seed)
+    fi = [n for n in fanin_centers(fi_view, min_in=3) if n in sub and forwards_promptly(fi_view, n, seed)]
     path = longest_path_from(sub, seed)
     insts = institutions_on_path(sub, path)
 
@@ -87,9 +92,9 @@ def detect_pattern(G: nx.DiGraph, seed: str) -> tuple[str, list[str], list[tuple
 
     if fi:
         center = fi[0]
-        parents = list(sub.predecessors(center))
+        parents = list(fi_view.predecessors(center))
         nodes = list(parents) + [center]
-        outs = list(sub.successors(center))
+        outs = list(fi_view.successors(center))
         nodes.extend(o for o in outs if o not in nodes)
         idx = {n: i for i, n in enumerate(nodes)}
         edges = [(idx[p], idx[center]) for p in parents if p in idx]
@@ -244,6 +249,17 @@ def build_ring_record(
     return ring
 
 
+def _with_cross_inst_reason(G: nx.DiGraph, token: str, inst: str, reasons: list[str]) -> list[str]:
+    """Add 'funds arrived from another institution' to a hop's reasons (plan §6.3 'WHY FLAGGED')."""
+    senders = {G.nodes[p].get("institution") for p in G.predecessors(token)} - {inst, None, "UNKNOWN"}
+    if not senders:
+        return list(reasons)
+    note = f"Cross-institution movement (funds arrived from {', '.join(sorted(senders))})"
+    # keep the 'no indicators' placeholder out when we have a real structural reason
+    base = [r for r in reasons if not r.startswith("No strong behavioural")]
+    return [note] + base
+
+
 def detect_ring_from_transactions(
     transactions: Sequence[Transaction],
     seed_token: str,
@@ -306,6 +322,7 @@ def detect_ring_from_transactions(
             is_terminal=is_terminal,
             pattern=pattern,
             reasons=result.reasons,
+            features=result.features,
         )
         hops.append(
             RingHop(
@@ -319,7 +336,7 @@ def detect_ring_from_transactions(
                 risk_score=result.risk_score,
                 risk_level=result.risk_level,
                 receiver_class=rclass,
-                reasons=result.reasons[:5],
+                reasons=_with_cross_inst_reason(G, token, inst, result.reasons)[:5],
             )
         )
 
