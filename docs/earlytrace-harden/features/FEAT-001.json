@@ -1,0 +1,38 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Establish the frozen v1 compatibility rail and implement the strict v2 privacy/trust contract: finite canonical input grammar, source allowlist, HMAC token separation, RFC-8785-style attestation, key registry, and consent/participation model primitives. This is the prerequisite for every v2 runtime and API feature.",
+  "status": "completed",
+  "steps": [
+    "Copy the current v1 scorer/motif boundary into backend/app/evaluation/v1_compat.py and backend/app/evaluation/v1_motifs.py, route only the existing --days evaluator through it, and add backend/tests/fixtures/earlytrace-v1-seed7.json plus backend/tests/test_v1_compatibility.py so the seed-7/days-24 command remains immutable and explicitly labelled v1 compatibility.",
+    "Extend backend/app/models/preauth.py with strict v2 event/decision/action/feedback contracts, fixed enums and registries, exact regexes, ConsentOutcome and Participation, stable UNKNOWN consistency, and the unsupported-schema safe envelope; add backend/app/security/input_boundary.py to reject duplicate keys, canonical-key collisions, finite forbidden aliases, over-depth/over-token JSON, and raw values before Pydantic/logging.",
+    "Add backend/app/security/canonical_json.py and backend/app/security/preauth_attestation.py implementing RFC-8785-style canonical UTF-8 JSON, SHA-256 safe-envelope digests, Ed25519 unpadded base64url signatures, server-side payload reconstruction, and injected-clock key registry active/expiry/revocation checks.",
+    "Split backend/app/security/tokens.py into tok_ live tokens, case_ display pseudonyms, and isolated legacy/fixture grammars with an immediate-HMAC TrustedReferenceAdapter; add the EventSource allowlist and source/key/consent primitives in backend/app/context/preauth.py without enabling external connectors.",
+    "Update focused model/input/token/attestation tests and the scope/data documents without treating any v2 control as implemented until tests pass."
+  ],
+  "acceptance_criteria": [
+    "The HTTP-safe v2 grammar accepts only tok_[0-9a-f]{32} live tokens and rejects acct_, acc_, raw references, exact sensitive values, duplicate/colliding keys, forbidden aliases, unknown fields, and validation-error echoing.",
+    "EventSource accepts only SYNTHETIC_GENERATOR, SANDBOX_FIXTURE, and STAGING_REGISTERED_FIXTURE; EXTERNAL_BANK, BANK, NPCI, UPI_SWITCH, CLOUD, and unknown values are rejected.",
+    "Attestation and consent mutation tests fail before graph/context mutation and use server-reconstructed canonical payloads, SHA-256 digests, Ed25519 base64url signatures, active/expiry/revocation registry state, and an injected clock.",
+    "The legacy seed-7/days-24 evaluator still passes its stable descriptor and is labelled v1 compatibility; v1 is not exposed as a public scoring contract."
+  ],
+  "verification": [
+    "From trail\\backend run C:\\Users\\shyam.BATCONSOLE\\Desktop\\RAKSHAM\\trail\\.venv\\Scripts\\python.exe -m pytest -q tests/test_v1_compatibility.py tests/test_preauth_models.py tests/test_preauth_input_boundary.py tests/test_preauth_attestation.py tests/test_tokens.py.",
+    "From trail\\backend run C:\\Users\\shyam.BATCONSOLE\\Desktop\\RAKSHAM\\trail\\.venv\\Scripts\\python.exe -m app.evaluation.run_synthetic --seed 7 --days 24 and confirm the unchanged synthetic v1 descriptor."
+  ],
+  "blocked_reason": null,
+  "findings": "Resolves the trust and contract portions of F-01, F-02, F-04, F-05, F-06, F-15 and the v1 cutover prerequisite of F-03. Current source is v1 and process-memory; these are planned changes, not current facts.",
+  "verification_results": {
+    "focused": "61 passed, 1 Starlette deprecation warning, 6.47s",
+    "v1_command": "synthetic v1; seed=7; days=24; events=91; temporal_test_events=42; b0_precision=1.0; b1_precision=1.0; offline_winner=b1_motif_policy",
+    "compileall": "passed",
+    "full_suite": "152 passed, 1 Starlette deprecation warning, 9.87s",
+    "docker_compose_config": "not run: workspace .env is absent"
+  },
+  "later_step_findings": [
+    "FEAT-005 remains responsible for cutting POST /preauth/decisions to v2-only; the existing v1 HTTP route is not changed in FEAT-001.",
+    "FEAT-003 remains responsible for durable SQLite PAUD storage; current preauth operational state is still process-memory.",
+    "FEAT-004 remains responsible for server-owned context, consent matrix enforcement, leakage-proof event-time features, and the v2 runtime engine.",
+    "No external connector, Kaggle credential, download, upload, or live bank/NPCI/UPI-switch integration was added."
+  ]
+}
