@@ -5,3 +5,8 @@ __pycache__/
 .venv/
 node_modules/
 audit.jsonl
+
+# generated synthetic corpus (re-create with `make evaluate`)
+data/synthetic/*.jsonl
+data/synthetic/ground_truth.json
+data/synthetic/evaluation.json
