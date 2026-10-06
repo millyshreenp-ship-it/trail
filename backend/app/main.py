@@ -5,11 +5,13 @@ import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api import beacons, cases, complaints, graph, institutions, review
+from app.api import beacons, cases, complaints, graph, institutions, preauth, review
 from app.config import VERSION, get_settings
+from app.security.audit import verify_ledgers
 from app.security.rbac import default_dev_users
 from app.state import get_state
 
@@ -28,6 +30,11 @@ app.add_middleware(CORSMiddleware, allow_origins=list(cfg.cors_origins) + ([] if
 @app.middleware("http")
 async def request_context(request: Request, call_next):
     rid = request.headers.get("X-Request-Id") or uuid.uuid4().hex[:12]
+    if request.url.path.startswith("/preauth"):
+        cl = request.headers.get("content-length")
+        if cl and cl.isdigit() and int(cl) > 65_536:
+            return JSONResponse(status_code=413, content={"detail": "request body too large"},
+                                headers={"X-Request-Id": rid})
     t0 = time.perf_counter()
     response = await call_next(request)
     response.headers.update({"X-Request-Id": rid, "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY",
@@ -37,7 +44,7 @@ async def request_context(request: Request, call_next):
     return response
 
 
-for r in (institutions.router, complaints.router, beacons.router, cases.router, review.router, graph.router):
+for r in (institutions.router, complaints.router, beacons.router, cases.router, review.router, graph.router, preauth.router):
     app.include_router(r)
 
 
@@ -48,8 +55,11 @@ def healthz():
 
 @app.get("/readyz", tags=["ops"])
 def readyz():
-    ok, bad = get_state().audit.verify_chain()
-    return {"ready": ok, "audit_chain_intact": ok, "first_bad_seq": bad}
+    health = verify_ledgers(get_state().audit, get_state().preauth_store)
+    legacy = health["legacy"]
+    preauth = health["preauth"]
+    return {"ready": health["ready"], "audit_chain_intact": legacy["intact"], "preauth_chain_intact": preauth["intact"],
+            "first_bad_seq": legacy["first_bad_seq"], "first_bad_paud_seq": preauth["first_bad_seq"]}
 
 
 @app.get("/meta", tags=["ops"])

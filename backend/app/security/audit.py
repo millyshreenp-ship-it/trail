@@ -1,4 +1,10 @@
-"""Hash-chained, append-only audit log with optional durable JSONL sink."""
+"""Hash-chained legacy audit log with optional durable JSONL sink.
+
+EarlyTrace v2 uses the namespaced SQLite PAUD ledger in
+``app.storage.preauth`` as its authoritative acknowledgement ledger. This
+module remains the legacy Trail audit facade; the two chains are verified
+independently and are never represented as one global sequence.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -40,7 +46,7 @@ class AuditLog:
                 "prev_hash": prev,
             }
             body["hash"] = self._hash(body)
-            if self._path:  # write-ahead: persist before acknowledging
+            if self._path:
                 with open(self._path, "a", encoding="utf-8") as fh:
                     fh.write(json.dumps(body, default=str) + "\n")
                     fh.flush()
@@ -51,9 +57,7 @@ class AuditLog:
     @staticmethod
     def _hash(body: dict) -> str:
         payload = {k: v for k, v in body.items() if k != "hash"}
-        return hashlib.sha256(
-            json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()
-        ).hexdigest()
+        return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest()
 
     def verify_chain(self) -> tuple[bool, int | None]:
         """Returns (ok, first_bad_seq)."""
@@ -71,3 +75,14 @@ class AuditLog:
     def get(self, audit_id: str) -> dict | None:
         with self._lock:
             return next((dict(e) for e in self._entries if e["audit_id"] == audit_id), None)
+
+
+def verify_ledgers(legacy: AuditLog, preauth) -> dict[str, object]:
+    """Return independent health for legacy AUD and v2 PAUD ledgers."""
+    legacy_ok, legacy_bad = legacy.verify_chain()
+    paud_ok, paud_bad = preauth.verify_chain()
+    return {
+        "legacy": {"intact": legacy_ok, "first_bad_seq": legacy_bad},
+        "preauth": {"intact": paud_ok, "first_bad_seq": paud_bad},
+        "ready": legacy_ok and paud_ok,
+    }

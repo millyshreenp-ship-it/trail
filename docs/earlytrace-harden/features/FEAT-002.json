@@ -1,0 +1,35 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Build the trusted v2 decision runtime and durable API: server-owned context/consent, strict event-time features, deterministic B0/B1 policy, SQLite PAUD atomicity, institution-bound principals, v2-only HTTP cutover, and record-only actions/feedback.",
+  "status": "completed",
+  "steps": [
+    "Implement backend/app/storage/preauth.py with DecisionStore, SQLiteDecisionStore, and demo-only MemoryDecisionStore; integrate backend/app/state.py and backend/app/security/audit.py with WAL, synchronous=FULL, busy timeout, recovery/checkpoint, tenant-qualified reservations/idempotency/tombstones, leases/generation fencing, retention, and PAUD hash-chain atomic commits.",
+    "Implement backend/app/context/preauth.py as the only provider of server-owned current events, registered fixtures, consent outcomes, verified beacons, institution denominator, hub state, participation, local sufficiency, context snapshots, and injected clocks; enforce the exhaustive ConsentOutcome matrix and no silent cross-to-local downgrade or timeout upgrade.",
+    "Add backend/app/detection/features_contract.py and update motifs/preauth to use one strict earlier-than-subject history primitive, b0.v2/motif.v2 hashes, exact equations/policy/uncertainty, safe UNKNOWN, and the local-only step-up ceiling; keep frozen v1 imports isolated.",
+    "Replace backend/app/api/preauth.py and related auth/dependency/middleware code with a v2-only route, unsupported-schema UNKNOWN handling, tenant-scoped idempotency, generic wrong-tenant 404s, strict action/feedback receipts, PAUD-backed decisions, and no legacy order/freeze/report imports.",
+    "Add context, feature, storage, API, tenant, action, crash, restart, and retention tests; update only the v2-facing tests while retaining the v1 evaluator regression."
+  ],
+  "acceptance_criteria": [
+    "POST /preauth/decisions rejects earlytrace.preauth.v1 and caller prior_events/as_of/hub/participation/arbitrary beacon/acct_ fields with stable 410/422 before scoring; v1 exists only in the offline evaluator.",
+    "Feature history is event_id != current.event_id and occurred_at < current.occurred_at for B0, B1, HGB/calibration, evaluation, and explanations; feature_as_of is attested subject time and server_now cannot expand it.",
+    "SQLite PAUD is the sole authoritative ledger; one transaction commits reservation/decision/idempotency/receipt/audit, and crash/fencing tests prove no duplicate final row or unaudited acknowledgement.",
+    "Consent outcomes, participation, action expiry/eligibility, same-hash replay, conflicting-hash 409, feedback quarantine, and immutable decisions match the locked design."
+  ],
+  "verification": [
+    "From trail\\backend run C:\\Users\\shyam.BATCONSOLE\\Desktop\\RAKSHAM\\trail\\.venv\\Scripts\\python.exe -m pytest -q tests/test_preauth_context.py tests/test_preauth_features.py tests/test_preauth_golden.py tests/test_preauth_storage.py tests/test_preauth_crash_recovery.py tests/test_preauth_retention.py.",
+    "From trail\\backend run C:\\Users\\shyam.BATCONSOLE\\Desktop\\RAKSHAM\\trail\\.venv\\Scripts\\python.exe -m pytest -q tests/test_preauth_api.py tests/test_preauth_tenant.py tests/test_preauth_actions.py tests/test_preauth_security.py."
+  ],
+  "blocked_reason": null,
+  "findings": "Resolves F-03, F-05, F-06, F-07, F-12, and F-13 in the executable decision path; it depends on FEAT-001's v2 models, attestation, token grammar, and v1 compatibility boundary.",
+  "verification_results": {
+    "focused_context_feature_storage": "10 passed, 1 Starlette deprecation warning, 0.30s",
+    "focused_api_tenant_actions_security": "14 passed, 1 Starlette deprecation warning, 0.49s",
+    "v1_command": "synthetic v1; seed=7; days=24; events=91; temporal_test_events=42; b0_precision=1.0; b1_precision=1.0; offline_winner=b1_motif_policy",
+    "v1_stdout": "{\"data_status\":\"synthetic\",\"split\":\"temporal\",\"seed\":7,\"engine_version\":\"earlytrace-b0b1-heuristic-v1\",\"path\":\"C:\\\\Users\\\\shyam.BATCONSOLE\\\\Desktop\\\\RAKSHAM\\\\trail\\\\data\\\\evaluation\\\\synthetic-seed7-d24\",\"offline_winner\":\"b1_motif_policy\",\"b0_precision\":1.0,\"b1_precision\":1.0}",
+    "compileall": "passed",
+    "full_suite": "160 passed, 1 Starlette deprecation warning, 7.13s",
+    "docker_compose_config": "not run: workspace .env is absent (docker compose reported the missing trail\\\\.env file)",
+    "post_verification_findings": "No new test failures. The only warning is the pre-existing FastAPI/Starlette TestClient httpx2 deprecation warning. Docker Compose config was not available without the absent workspace .env; no network, credential, dataset, or upload action was performed."
+  }
+}

@@ -15,6 +15,7 @@ class Settings:
     cors_origins: tuple = field(default_factory=lambda: tuple(
         o.strip() for o in os.environ.get("TRAIL_CORS_ORIGINS", "http://localhost:5173,http://localhost:8000").split(",") if o.strip()))
     audit_path: str | None = field(default_factory=lambda: os.environ.get("TRAIL_AUDIT_PATH") or None)
+    preauth_path: str = field(default_factory=lambda: os.environ.get("TRAIL_PREAUTH_PATH", ":memory:"))
     log_level: str = field(default_factory=lambda: os.environ.get("TRAIL_LOG_LEVEL", "INFO").upper())
 
     @property

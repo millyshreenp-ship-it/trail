@@ -28,7 +28,10 @@ def _b64url(value: bytes) -> str:
 def _unb64url(value: str) -> bytes:
     if not value or any(ch not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-" for ch in value):
         raise ValueError("invalid base64url signature")
-    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+    decoded = base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+    if _b64url(decoded) != value:
+        raise ValueError("non-canonical base64url signature")
+    return decoded
 
 
 def safe_event_envelope(event: Any) -> dict[str, Any]:

@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import os
 import threading
+import time
 from collections import defaultdict
 from datetime import datetime, timezone
 
 from app.config import get_settings
+from app.context.preauth import VerifiedContextProvider
 from app.models.beacon import Beacon, EdgeType
 from app.models.case import Case
 from app.security.audit import AuditLog
@@ -14,6 +16,7 @@ from app.security.rbac import UserDirectory
 from app.security.ratelimit import SlidingWindowLimiter
 from app.security.signing import BeaconVerifier, InstitutionRegistry
 from app.security.tokens import TokenService
+from app.storage.preauth import SQLiteDecisionStore
 
 
 class VictimBankDirectory:
@@ -41,17 +44,25 @@ class HubState:
         self.audit = AuditLog(cfg.audit_path)
         self.users = UserDirectory()
         self.registry = InstitutionRegistry()
+        self.now = clock or (lambda: datetime.now(timezone.utc))
+        self.context = VerifiedContextProvider(clock=self.now)
+        self.preauth_store = SQLiteDecisionStore(cfg.preauth_path, clock=self.now)
         kw = {"clock": clock} if clock else {}
         self.verifier = BeaconVerifier(self.registry, **kw)
         self.victim_banks = VictimBankDirectory()
         # Anti-probing: outsiders cannot enumerate whether an account/token is flagged.
-        self.probe_limiter = SlidingWindowLimiter(max_events=30, window_s=60, **kw)
-        self.now = lambda: datetime.now(timezone.utc)  # injectable clock (tests/demo)
+        limiter_clock = (lambda: self.now().timestamp()) if clock else time.time
+        self.probe_limiter = SlidingWindowLimiter(max_events=30, window_s=60, clock=limiter_clock)
         self.cases: dict[str, Case] = {}
         self.seed_index: dict[str, str] = {}              # first-hop token -> case_id (dedup)
         self.beacons: list[Beacon] = []
+        self.preauth_limiter = SlidingWindowLimiter(max_events=60, window_s=60, clock=limiter_clock)
         self._case_counter = 1023
         self._lock = threading.Lock()
+
+    def purge_expired_preauth(self, now: datetime | None = None) -> int:
+        """Run the declared retention policy on the authoritative PAUD store."""
+        return self.preauth_store.purge(now or self.now())["decisions"]
 
     def next_case_id(self) -> str:
         with self._lock:

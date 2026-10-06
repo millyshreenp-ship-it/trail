@@ -276,6 +276,7 @@ class UnknownReason(str, Enum):
     CALIBRATION_UNAVAILABLE = "CALIBRATION_UNAVAILABLE"
     CALIBRATION_MISMATCH = "CALIBRATION_MISMATCH"
     CONTEXT_CONFLICT = "CONTEXT_CONFLICT"
+    DECLARATION_MISMATCH = "DECLARATION_MISMATCH"
 
 
 class ScoreKind(str, Enum):
@@ -491,7 +492,14 @@ class EvidenceItemV2(_Strict):
     institution_id: str = Field(pattern=r"^[A-Z][A-Z0-9_]{1,32}$")
     observed_at: datetime
     expires_at: datetime
-    coverage: float = Field(ge=0, le=1, decimal_places=4)
+    coverage: float = Field(ge=0, le=1)
+
+    @field_validator("coverage")
+    @classmethod
+    def _coverage_precision(cls, value: float) -> float:
+        if round(value, 4) != value:
+            raise ValueError("coverage must use at most four decimal places")
+        return value
 
     @field_validator("observed_at", "expires_at")
     @classmethod
@@ -515,7 +523,7 @@ class RiskDecisionV2(_Strict):
     calibrated: bool
     reasons: list[DecisionReasonV2] = Field(default_factory=list, max_length=12)
     evidence: list[EvidenceItemV2] = Field(default_factory=list, max_length=16)
-    evidence_coverage: float = Field(ge=0, le=1, decimal_places=4)
+    evidence_coverage: float = Field(ge=0, le=1)
     participation: Participation
     local_only: bool
     consent_outcome: ConsentOutcome
@@ -529,8 +537,15 @@ class RiskDecisionV2(_Strict):
     calibration_id: str | None = Field(default=None, pattern=r"^cal_[a-z0-9_-]{8,64}$")
     unknown_reason: UnknownReason | None = None
     expires_at: datetime
-    audit_id: str | None = Field(default=None, pattern=r"^AUD-[A-Za-z0-9_-]{8,64}$")
+    audit_id: str | None = Field(default=None, pattern=r"^(?:AUD|PAUD)-[A-Za-z0-9_-]{8,64}$")
     irreversible: Literal[False] = False
+
+    @field_validator("evidence_coverage")
+    @classmethod
+    def _evidence_precision(cls, value: float) -> float:
+        if round(value, 4) != value:
+            raise ValueError("evidence coverage must use at most four decimal places")
+        return value
 
     @field_validator("as_of", "subject_event_time", "expires_at")
     @classmethod
@@ -600,7 +615,7 @@ class ActionReceiptV2(_Strict):
     expires_at: datetime
     duplicate: bool = False
     effect: Literal["recorded_only"] = "recorded_only"
-    audit_id: str = Field(pattern=r"^AUD-[A-Za-z0-9_-]{8,64}$")
+    audit_id: str = Field(pattern=r"^(?:AUD|PAUD)-[A-Za-z0-9_-]{8,64}$")
 
 
 REASON_TEMPLATE_REGISTRY = {code.lower(): code for code in V2_REASON_CODES}

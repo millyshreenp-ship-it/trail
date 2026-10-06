@@ -106,9 +106,9 @@ def validate_v2_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     if "event" in data:
         if not isinstance(data["event"], dict):
             raise InputBoundaryError("event object required")
-        allowed_event = {"schema_version", "event_id", "occurred_at", "as_of", "institution_id",
-                         "event_source", "rail", "source_token", "payee_token", "amount_bucket",
-                         "payee_age_bucket", "session_context", "consent_scope", "trace_id", "idempotency_key"}
+        allowed_event = {"schema_version", "event_id", "occurred_at", "institution_id",
+                         "event_source", "rail", "source_token", "payee_token",
+                         "amount_bucket", "payee_age_bucket", "session_context", "consent_scope", "trace_id", "idempotency_key"}
         if set(data["event"]) - allowed_event:
             raise InputBoundaryError("unknown field")
     if "attestation" in data:
