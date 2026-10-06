@@ -110,6 +110,64 @@ def subgraph_from_seed(G: nx.DiGraph, seed_token: str) -> nx.DiGraph:
     return G.subgraph(reachable).copy()
 
 
+FANIN_WINDOW_MIN = 60.0  # co-feeders / collector forwarding must be within this of the seed's activity
+
+
+def edge_time(data: dict) -> float | None:
+    """Edge time in epoch seconds (transaction graph: timestamp; beacon graph: issued_at)."""
+    ts = data.get("timestamp")
+    if ts is not None:
+        return ts.timestamp()
+    ia = data.get("issued_at")
+    return float(ia) if ia is not None else None
+
+
+def seed_time(G: nx.DiGraph, seed_token: str) -> float | None:
+    times = [t for _, _, d in list(G.in_edges(seed_token, data=True)) + list(G.out_edges(seed_token, data=True))
+             if (t := edge_time(d)) is not None]
+    return min(times) if times else None
+
+
+def subgraph_with_cofeeders(
+    G: nx.DiGraph, seed_token: str, window_min: float = FANIN_WINDOW_MIN
+) -> nx.DiGraph:
+    """Seed-reachable nodes plus co-feeding senders (needed to see a fan-in).
+
+    In a fan-in the other senders into the collector are not descendants of the complaint
+    seed. To avoid pulling in a busy legitimate merchant's unrelated customers, a co-feeder
+    edge only counts when it happened within ``window_min`` of the seed's own activity
+    (when edge times are available). The victim feeding the seed is never a co-feeder.
+    """
+    if seed_token not in G:
+        return nx.DiGraph()
+    reach = nx.descendants(G, seed_token) | {seed_token}
+    t0 = seed_time(G, seed_token)
+    sub = G.subgraph(reach).copy()
+    for n in reach:
+        for p, _, d in G.in_edges(n, data=True):
+            if p in reach:
+                continue
+            if n == seed_token:
+                continue  # whoever funded the seed is the victim, not a feeder
+            t = edge_time(d)
+            if t0 is not None and t is not None and abs(t - t0) > window_min * 60:
+                continue
+            if p not in sub:
+                sub.add_node(p, **G.nodes[p])
+            sub.add_edge(p, n, **d)
+    return sub
+
+
+def forwards_promptly(G: nx.DiGraph, center: str, seed_token: str, window_min: float = FANIN_WINDOW_MIN) -> bool:
+    """Collector behaviour: has an outgoing edge within the window of the seed's activity."""
+    t0 = seed_time(G, seed_token)
+    for _, _, d in G.out_edges(center, data=True):
+        t = edge_time(d)
+        if t0 is None or t is None or abs(t - t0) <= window_min * 60:
+            return True
+    return False
+
+
 def longest_path_from(G: nx.DiGraph, seed: str) -> list[str]:
     """Longest simple path starting at seed (for chain / hop patterns)."""
     if seed not in G:
