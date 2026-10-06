@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Sequence
 
-from app.detection.features import FEATURE_NAMES, compute_account_features
+from app.detection.features import FEATURE_NAMES, compute_account_features, compute_round_trip_ratio
 from app.models.case import RiskLevel
 from app.models.transaction import Transaction
 
@@ -50,6 +50,8 @@ _WEIGHTS = {
 }
 
 # Soft saturation points for each feature (roughly 95th pct of scam class)
+_ROUND_TRIP_DISCOUNT = 0.85  # max fraction of raw risk removed when funds fully round-trip
+
 _SAT = {
     "fwd_ratio_15m": 1.0,
     "t_fwd_median": 15.0,       # minutes; we invert below
@@ -136,11 +138,7 @@ def _reasons(features: dict[str, float], score: float) -> list[str]:
     elif jump >= 8:
         why.append(f"Activity jump {jump:.1f}× above normal daily baseline")
 
-    if score >= 0.60 and any(
-        k in (features.get("source_institution", ""),)  # placeholder for cross-inst
-        for k in ()
-    ):
-        pass  # cross-institution signal added by graph layer later
+    # Cross-institution signals are added by the graph layer (detection/graph.py).
 
     if not why and score >= 0.35:
         why.append("Moderate combination of velocity and counterpart diversity")
@@ -168,14 +166,23 @@ class RiskScorer:
         # Normalise by total weight so missing weights don't deflate
         total_w = sum(self.weights.get(n, 0.0) for n in FEATURE_NAMES) or 1.0
         raw = raw / total_w
+        # Refund-like behaviour: funds returned to the original sender are not mule forwarding.
+        rt = float(features.get("round_trip_ratio", 0.0))
+        if rt > 0.0:
+            raw *= 1.0 - _ROUND_TRIP_DISCOUNT * min(1.0, rt)
         calibrated = _calibrate(raw)
         level = _level(calibrated)
         reasons = _reasons(features, calibrated)
+        if rt >= 0.5:
+            reasons = ["Most inbound value returned to the original sender (refund-like) — risk discounted"] + reasons
+        out_features = {k: float(features.get(k, 0.0)) for k in FEATURE_NAMES}
+        if "round_trip_ratio" in features:
+            out_features["round_trip_ratio"] = rt
         return RiskResult(
             risk_score=calibrated,
             risk_level=level,
-            reasons=reasons,
-            features={k: float(features.get(k, 0.0)) for k in FEATURE_NAMES},
+            reasons=reasons[:6],
+            features=out_features,
             raw_score=round(raw, 4),
         )
 
@@ -187,6 +194,7 @@ class RiskScorer:
         as_of: datetime | None = None,
     ) -> RiskResult:
         feats = compute_account_features(transactions, account_token, as_of=as_of)
+        feats["round_trip_ratio"] = compute_round_trip_ratio(transactions, account_token, as_of=as_of)
         return self.score(feats)
 
     def score_many(
