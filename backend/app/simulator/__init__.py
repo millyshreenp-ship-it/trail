@@ -12,6 +12,7 @@ from app.simulator.generator import (
     generate_scam_fanout,
     scenario_mixed_patterns,
     scenario_north_star,
+    scenario_ring_with_legit_receiver,
     transactions_to_dicts,
     write_synthetic_jsonl,
 )
@@ -25,6 +26,7 @@ __all__ = [
     "generate_cross_bank_hop",
     "scenario_north_star",
     "scenario_mixed_patterns",
+    "scenario_ring_with_legit_receiver",
     "transactions_to_dicts",
     "write_synthetic_jsonl",
 ]

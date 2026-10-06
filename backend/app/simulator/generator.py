@@ -20,7 +20,11 @@ from app.models.transaction import Transaction
 from app.security.tokens import TokenService
 
 from app.simulator.legitimate import (
+    LOOKALIKE_LEGIT_ACCOUNTS,
     generate_legitimate_transactions,
+    legitimate_gig_worker,
+    legitimate_high_volume_business,
+    legitimate_refund_pair,
     legitimate_shopkeeper_burst,
     legitimate_student_rent,
 )
@@ -30,7 +34,11 @@ from app.simulator.scam_patterns import (
     generate_scam_fanin,
     generate_scam_fanout,
 )
-from app.simulator.scenarios import scenario_mixed_patterns, scenario_north_star
+from app.simulator.scenarios import (
+    scenario_mixed_patterns,
+    scenario_north_star,
+    scenario_ring_with_legit_receiver,
+)
 
 __all__ = [
     "generate_dataset",
@@ -41,6 +49,7 @@ __all__ = [
     "generate_cross_bank_hop",
     "scenario_north_star",
     "scenario_mixed_patterns",
+    "scenario_ring_with_legit_receiver",
     "write_synthetic_jsonl",
     "transactions_to_dicts",
 ]
@@ -73,8 +82,15 @@ def generate_dataset(
     # Inject legitimate lookalikes that stress false positives
     shop = legitimate_shopkeeper_burst(token_service=token_service, rng=rng)
     rent = legitimate_student_rent(token_service=token_service)
+    lookalikes = (
+        shop + rent
+        + legitimate_refund_pair(token_service=token_service)
+        + legitimate_gig_worker(token_service=token_service, rng=random.Random(seed + 11))
+        + legitimate_high_volume_business(token_service=token_service, rng=random.Random(seed + 13))
+    )
 
     rings: list[list[Transaction]] = []
+    ring_meta: list[dict[str, Any]] = []
     labels: dict[str, str] = {}
     suspicious: list[Transaction] = []
 
@@ -84,12 +100,13 @@ def generate_dataset(
         fanin = generate_scam_fanin(token_service=token_service, rng=random.Random(seed + 3))
         hop = generate_cross_bank_hop(token_service=token_service, rng=random.Random(seed + 4))
         for subset, tag in (
-            (chain, "chain"),
-            (fanout, "fanout"),
-            (fanin, "fanin"),
-            (hop, "cross_bank_hop"),
+            (_namespace(chain, "k0"), "chain"),
+            (_namespace(fanout, "k1"), "fanout"),
+            (_namespace(fanin, "k2"), "fanin"),
+            (_namespace(hop, "k3"), "cross_bank_hop"),
         ):
             rings.append(subset)
+            ring_meta.append(_ring_meta(subset, tag))
             suspicious.extend(subset)
             for t in subset:
                 labels[t.source_token] = labels.get(t.source_token, "mule")
@@ -98,38 +115,29 @@ def generate_dataset(
             if subset:
                 labels[subset[0].destination_token] = "scam_ring"
 
-    # Pad suspicious volume with additional short chains if needed
-    extra_needed = max(0, n_suspicious - len(suspicious))
-    for k in range(extra_needed // 4 + 1):
-        if len(suspicious) >= n_suspicious:
-            break
-        extra = generate_scam_chain(
-            hops=(
-                ("BANK_A", f"acct_xseed_{k}"),
-                ("BANK_B", f"acct_xmule_{k}a"),
-                ("BANK_C", f"acct_xmule_{k}b"),
-            ),
-            seed_amount=rng.uniform(15_000, 90_000),
-            start=start.replace(day=min(28, 5 + k)),
-            token_service=token_service,
-            rng=random.Random(seed + 100 + k),
-        )
+    # Pad suspicious volume with varied extra rings until the target is reached
+    k = 0
+    while len(suspicious) < n_suspicious:
+        extra, tag = _padded_ring(k, rng, start, token_service)
+        extra = _namespace(extra, f"x{k}")
+        k += 1
         rings.append(extra)
+        ring_meta.append(_ring_meta(extra, tag))
         suspicious.extend(extra)
         for t in extra:
             labels[t.destination_token] = "mule"
 
-    labels["acct_shop_001"] = "legit"
-    labels["acct_student_01"] = "legit"
-    labels["acct_landlord_01"] = "legit"
+    for acct in LOOKALIKE_LEGIT_ACCOUNTS:
+        labels[acct] = "legit"
 
-    all_txs = sorted(legit + shop + rent + suspicious, key=lambda t: t.timestamp)
+    all_txs = sorted(legit + lookalikes + suspicious, key=lambda t: t.timestamp)
     return {
         "transactions": all_txs,
         "labels": labels,
         "rings": rings,
+        "ring_meta": ring_meta,  # [{"pattern", "seed", "members"}] aligned with `rings`
         "meta": {
-            "n_legitimate": len(legit) + len(shop) + len(rent),
+            "n_legitimate": len(legit) + len(lookalikes),
             "n_suspicious": len(suspicious),
             "n_total": len(all_txs),
             "n_rings": len(rings),
@@ -137,6 +145,57 @@ def generate_dataset(
             "generated_at": datetime.now(timezone.utc).isoformat(),
         },
     }
+
+
+def _ring_meta(subset: list[Transaction], pattern: str) -> dict[str, Any]:
+    """Ground truth for one ring: complaint seed + all mule/ring accounts (victim excluded).
+
+    Seed = first account that receives victim money; for fan-in that is the first feeder.
+    """
+    first = subset[0]
+    seed = first.source_token if pattern == "fanin" else first.destination_token
+    members = {t.source_token for t in subset} | {t.destination_token for t in subset}
+    if pattern != "fanin":
+        members.discard(first.source_token)  # the victim's own account is not part of the ring
+    return {"pattern": pattern, "seed": seed, "members": sorted(members)}
+
+
+def _namespace(txs: list[Transaction], tag: str) -> list[Transaction]:
+    """Make transaction_ids unique per ring (the pattern generators use fixed id prefixes)."""
+    return [t.model_copy(update={"transaction_id": f"{t.transaction_id}_{tag}"}) for t in txs]
+
+
+def _padded_ring(
+    k: int, rng: random.Random, start: datetime, token_service: TokenService | None
+) -> tuple[list[Transaction], str]:
+    """Varied extra ring #k: rotates chain / fan-out / fan-in / cross-bank hop, random size and bank mix."""
+    insts = ("BANK_A", "BANK_B", "BANK_C", "WALLET_W")
+    pattern = ("chain", "fanout", "fanin", "cross_bank_hop")[k % 4]
+    ts = start.replace(day=1 + (k % 28), hour=8 + (k % 12), minute=rng.randint(0, 40))
+    amt = rng.uniform(15_000, 190_000)
+    sub = random.Random(rng.randint(0, 10**9))
+    if pattern in ("chain", "cross_bank_hop"):
+        n = rng.randint(3, 5)
+        names = [f"acct_p{k}_m{i}" for i in range(n)]
+        if pattern == "cross_bank_hop":
+            order = ["BANK_A", "BANK_B", "WALLET_W", "BANK_C", "BANK_B"][:n]
+        else:
+            order = [rng.choice(insts) for _ in range(n)]
+        txs = generate_scam_chain(hops=tuple(zip(order, names)), seed_amount=amt, start=ts,
+                                  token_service=token_service, rng=sub)
+    elif pattern == "fanout":
+        m = rng.randint(3, 6)
+        leaves = tuple((rng.choice(insts), f"acct_p{k}_leaf{i}") for i in range(m))
+        txs = generate_scam_fanout(origin=(rng.choice(insts), f"acct_p{k}_origin"), leaves=leaves,
+                                   seed_amount=amt, start=ts, token_service=token_service, rng=sub)
+    else:
+        m = rng.randint(3, 5)
+        sinks = tuple((rng.choice(insts), f"acct_p{k}_src{i}") for i in range(m))
+        txs = generate_scam_fanin(sinks=sinks, collector=(rng.choice(insts), f"acct_p{k}_collector"),
+                                  per_leg=amt / m, start=ts, token_service=token_service, rng=sub)
+        txs = [t.model_copy(update={"destination_token": f"acct_p{k}_cashout"})
+               if t.destination_token == "acct_cashout_fi" else t for t in txs]
+    return txs, pattern
 
 
 def transactions_to_dicts(txs: Iterable[Transaction]) -> list[dict]:
