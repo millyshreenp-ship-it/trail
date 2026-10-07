@@ -1,12 +1,51 @@
 .env
+.env.*
+!.env.example
 __pycache__/
 *.pyc
 .pytest_cache/
 .venv/
 node_modules/
+frontend/dist/
+integrations/solana/target/
+integrations/hardware/.pio/
+deploy/**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
 audit.jsonl
+data/evaluation/
+data/external/
+research/kaggle/runs/
 
-# generated synthetic corpus (re-create with `make evaluate`)
-data/synthetic/*.jsonl
-data/synthetic/ground_truth.json
-data/synthetic/evaluation.json
+# Model artifacts and checkpoints
+checkpoints/
+model_checkpoints/
+*.joblib
+*.pkl
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+
+# Secrets and local credentials
+secrets/
+*.secret
+*.secrets
+*.pem
+*.key
+
+# Logs and local databases
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+.kaggle/
+
+# Terraform local state and variables
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars

@@ -219,6 +219,176 @@ def generate_scam_fanin(
     return txs
 
 
+GENERATOR_VERSION = "earlytrace-sim-1"
+LABEL_RULE = (
+    "Each event label is the role planted by this scenario script "
+    "(social_engineering_preauth, mule_forward, or legitimate_lookalike). "
+    "The script does not call the detector, and it does not use a model prediction as truth."
+)
+
+
+def make_preauth_event(
+    *,
+    seq: int,
+    seed: int,
+    ts: datetime,
+    institution: str,
+    source: str,
+    payee: str,
+    bucket: str,
+    age: str,
+    session: str,
+    rail: str = "UPI",
+    consent: str = "LOCAL_BEHAVIOUR",
+):
+    """Build a strict PreAuthEvent. Imported lazily so token helpers stay free of the scorer."""
+    from app.models.preauth import ConsentScope, PayeeAgeBucket, PreAuthEvent, SessionContext
+
+    token = f"{seed:04d}{seq:05d}"
+    return PreAuthEvent(
+        schema_version="earlytrace.preauth.v1",
+        event_id=f"evt_{token}",
+        occurred_at=ts,
+        as_of=ts,
+        institution_id=institution,
+        rail=rail,
+        source_token=source,
+        payee_token=payee,
+        amount_bucket=bucket,
+        payee_age_bucket=PayeeAgeBucket(age),
+        session_context=SessionContext(session),
+        consent_scope=ConsentScope(consent),
+        trace_id=f"trace_{token}",
+        idempotency_key=f"idem{token}",
+    )
+
+
+def preauth_story_events(kind: str, *, seed: int, start: datetime, seq: int) -> tuple[list, dict, int]:
+    """One planted story. Returns events, labels, next sequence number.
+
+    Ground truth comes from `kind`, which is chosen by the caller before any detector runs.
+    """
+    s = seed
+    t = start
+    events = []
+    labels: dict = {}
+    tag = f"s{s}q{seq}"
+
+    def add(minutes, inst, src, payee, bucket, age, session, scenario, label, role, **kw):
+        nonlocal seq
+        ev = make_preauth_event(
+            seq=seq, seed=s, ts=t + timedelta(minutes=minutes), institution=inst,
+            source=src, payee=payee, bucket=bucket, age=age, session=session, **kw,
+        )
+        events.append(ev)
+        labels[ev.event_id] = {
+            "label": label,
+            "scenario": scenario,
+            "story_id": f"{kind}-{tag}-{start.date().isoformat()}",
+            "role": role,
+            "rule": LABEL_RULE,
+        }
+        seq += 1
+        return ev
+
+    p = f"acct_{tag}_payer"
+    mule = f"acct_{tag}_mule"
+    shop = f"acct_{tag}_shop"
+    if kind == "familiar_payment":
+        for i, day in enumerate((0, 30, 60)):
+            add(day * 24 * 60, "BANK_A", p, f"acct_{tag}_landlord", "10k_50k", "90d_plus",
+                "FAMILIAR_PAYEE", "familiar_payment", 0, "legitimate_lookalike")
+    elif kind == "new_beneficiary":
+        add(0, "BANK_A", p, mule, "50k_100k", "new", "URGENT_SOCIAL_ENGINEERING",
+            "social_engineering", 1, "social_engineering_preauth", consent="CONSENTED_BEACON")
+    elif kind == "rapid_forward":
+        # Both legs sit at the mule's institution so a local score can see the forward.
+        add(0, "BANK_B", p, mule, "50k_100k", "new", "URGENT_SOCIAL_ENGINEERING",
+            "rapid_forward", 1, "social_engineering_preauth")
+        add(4, "BANK_B", mule, f"acct_{tag}_hop", "50k_100k", "new", "ROUTINE",
+            "rapid_forward", 1, "mule_forward")
+    elif kind == "fanout":
+        add(0, "BANK_B", p, mule, "100k_500k", "new", "URGENT_SOCIAL_ENGINEERING",
+            "fanout", 1, "social_engineering_preauth")
+        for i in range(4):
+            add(3 + i, "BANK_B", mule, f"acct_{tag}_leaf{i}", "10k_50k", "new", "ROUTINE",
+                "fanout", 1, "mule_forward")
+    elif kind == "fanin":
+        for i in range(4):
+            add(i, "BANK_C", f"acct_{tag}_src{i}", mule, "10k_50k", "0_7d", "ROUTINE",
+                "fanin", 1, "mule_forward")
+        add(8, "BANK_C", mule, f"acct_{tag}_cash", "50k_100k", "new", "ROUTINE",
+            "fanin", 1, "mule_forward")
+    elif kind == "delayed_hop":
+        add(0, "BANK_B", p, mule, "50k_100k", "new", "URGENT_SOCIAL_ENGINEERING",
+            "delayed_hop", 1, "social_engineering_preauth")
+        add(8 * 60, "BANK_B", mule, f"acct_{tag}_late", "50k_100k", "new", "ROUTINE",
+            "delayed_hop", 1, "mule_forward")
+    elif kind == "split_value":
+        add(0, "BANK_B", p, mule, "100k_500k", "new", "URGENT_SOCIAL_ENGINEERING",
+            "split_value", 1, "social_engineering_preauth")
+        for i in range(3):
+            add(2 + i, "BANK_B", mule, f"acct_{tag}_part{i}", "10k_50k", "new", "ROUTINE",
+                "split_value", 1, "mule_forward")
+    elif kind == "partial_visibility":
+        add(0, "BANK_A", p, mule, "50k_100k", "new", "URGENT_SOCIAL_ENGINEERING",
+            "partial_visibility", 1, "social_engineering_preauth", consent="CONSENTED_BEACON")
+        add(6, "BANK_B", mule, f"acct_{tag}_mid", "50k_100k", "new", "ROUTINE",
+            "partial_visibility", 1, "mule_forward", consent="CONSENTED_BEACON")
+        add(12, "BANK_C", f"acct_{tag}_mid", f"acct_{tag}_end", "10k_50k", "new", "ROUTINE",
+            "partial_visibility", 1, "mule_forward", consent="CONSENTED_BEACON")
+    elif kind == "merchant_burst":
+        for i in range(6):
+            add(i * 3, "BANK_B", f"acct_{tag}_cust{i}", shop, "0_1k", "90d_plus",
+                "MERCHANT_CHECKOUT", "merchant", 0, "legitimate_lookalike")
+    elif kind == "salary_rent_refund":
+        add(0, "BANK_A", f"acct_{tag}_employer", p, "50k_100k", "90d_plus", "FAMILIAR_PAYEE",
+            "salary", 0, "legitimate_lookalike")
+        add(30 * 24 * 60, "BANK_A", f"acct_{tag}_employer", p, "50k_100k", "90d_plus", "FAMILIAR_PAYEE",
+            "salary", 0, "legitimate_lookalike")
+        add(60 * 24 * 60, "BANK_A", f"acct_{tag}_employer", p, "50k_100k", "90d_plus", "FAMILIAR_PAYEE",
+            "salary", 0, "legitimate_lookalike")
+        add(60 * 24 * 60 + 26 * 60, "BANK_A", p, f"acct_{tag}_landlord", "10k_50k", "90d_plus",
+            "FAMILIAR_PAYEE", "rent", 0, "legitimate_lookalike")
+        add(60 * 24 * 60 + 30 * 60, "BANK_B", shop, p, "1k_10k", "90d_plus", "MERCHANT_CHECKOUT",
+            "refund", 0, "legitimate_lookalike")
+        add(60 * 24 * 60 + 20 * 60, "BANK_B", p, shop, "1k_10k", "90d_plus", "MERCHANT_CHECKOUT",
+            "refund", 0, "legitimate_lookalike")
+    elif kind == "household":
+        add(0, "BANK_A", f"acct_{tag}_home1", f"acct_{tag}_home", "0_1k", "90d_plus", "ROUTINE",
+            "household", 0, "legitimate_lookalike")
+        add(30, "BANK_A", f"acct_{tag}_home2", f"acct_{tag}_home", "1k_10k", "90d_plus", "ROUTINE",
+            "household", 0, "legitimate_lookalike")
+    elif kind == "safe_new_payee":
+        add(0, "BANK_A", p, f"acct_{tag}_newfriend", "1k_10k", "new", "NEW_BENEFICIARY",
+            "safe_new_payee", 0, "legitimate_lookalike")
+    elif kind == "pass_through":
+        add(0, "BANK_A", f"acct_{tag}_employer", p, "50k_100k", "90d_plus", "FAMILIAR_PAYEE",
+            "pass_through", 0, "legitimate_lookalike")
+        add(26 * 60, "BANK_A", p, f"acct_{tag}_landlord", "10k_50k", "90d_plus", "FAMILIAR_PAYEE",
+            "pass_through", 0, "legitimate_lookalike")
+    else:
+        raise ValueError(f"unknown story {kind}")
+    return events, labels, seq
+
+
+PREAUTH_STORY_KINDS = (
+    "familiar_payment",
+    "new_beneficiary",
+    "rapid_forward",
+    "fanout",
+    "fanin",
+    "delayed_hop",
+    "split_value",
+    "partial_visibility",
+    "merchant_burst",
+    "salary_rent_refund",
+    "household",
+    "safe_new_payee",
+    "pass_through",
+)
+
+
 def generate_cross_bank_hop(
     *,
     seed_amount: float = 78_000,

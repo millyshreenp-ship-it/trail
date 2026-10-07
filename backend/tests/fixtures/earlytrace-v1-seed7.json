@@ -1,0 +1,41 @@
+{
+  "compatibility": "v1",
+  "data_status": "synthetic",
+  "generator_version": "earlytrace-sim-1",
+  "engine_version": "earlytrace-b0b1-heuristic-v1",
+  "feature_contract": "motif.v1",
+  "seed": 7,
+  "days": 24,
+  "event_count": 91,
+  "temporal_test_event_count": 42,
+  "temporal_split_counts": {
+    "train": 41,
+    "calibration": 8,
+    "test": 42
+  },
+  "budget": {
+    "alerts_per_thousand": 20.0,
+    "b0_alert_count": 1,
+    "b1_alert_count": 1,
+    "b0_precision": 1.0,
+    "b1_precision": 1.0,
+    "b0_recall": 0.2,
+    "b1_recall": 0.2
+  },
+  "pr_auc": {
+    "b0": 0.8786,
+    "b1": 0.5674
+  },
+  "lead_time_minutes_mean": {
+    "b0_score_at_least_0.60": 1.5,
+    "b1_step_up_or_review": 43.833
+  },
+  "safety": {
+    "neural_model_trained": false,
+    "calibrated_runtime": false,
+    "conformal_used": false,
+    "external_datasets": [],
+    "production_latency_claim": false,
+    "precision_is_stable_estimate": false
+  }
+}

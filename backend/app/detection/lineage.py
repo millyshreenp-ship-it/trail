@@ -42,9 +42,18 @@ def bucket_mid(bucket: str | None) -> float:
     return float(_BUCKET_MID.get(bucket or "0_1k", 500.0))
 
 
-def build_beacon_graph(beacons: Sequence[Beacon]) -> nx.DiGraph:
-    """Directed graph: parent_token → token for derived_funds; seeds are roots."""
-    G = nx.DiGraph()
+def parallel_edge_data(G: nx.DiGraph, source: str, dest: str) -> list[dict]:
+    """Every parallel transfer between two tokens. DiGraph callers still see one edge."""
+    if not G.has_edge(source, dest):
+        return []
+    if G.is_multigraph():
+        return [dict(data) for data in G[source][dest].values()]
+    return [dict(G.edges[source, dest])]
+
+
+def build_beacon_graph(beacons: Sequence[Beacon]) -> nx.MultiDiGraph:
+    """Directed multigraph: parent_token → token. Parallel beacons stay distinct edges."""
+    G = nx.MultiDiGraph()
     for b in beacons:
         attrs = {
             "institution": b.institution_id,
@@ -77,9 +86,9 @@ def build_beacon_graph(beacons: Sequence[Beacon]) -> nx.DiGraph:
     return G
 
 
-def build_transaction_graph(transactions: Sequence[Transaction]) -> nx.DiGraph:
-    """Directed graph of account tokens from synthetic transactions."""
-    G = nx.DiGraph()
+def build_transaction_graph(transactions: Sequence[Transaction]) -> nx.MultiDiGraph:
+    """Directed multigraph of account tokens. Repeated transfers are separate edges."""
+    G = nx.MultiDiGraph()
     for t in transactions:
         for node, inst in ((t.source_token, t.source_institution),
                            (t.destination_token, t.destination_institution)):
@@ -103,9 +112,9 @@ def build_transaction_graph(transactions: Sequence[Transaction]) -> nx.DiGraph:
 
 
 def subgraph_from_seed(G: nx.DiGraph, seed_token: str) -> nx.DiGraph:
-    """All nodes reachable from seed (including seed)."""
+    """All nodes reachable from seed (including seed). Preserves multi-edges."""
     if seed_token not in G:
-        return nx.DiGraph()
+        return nx.MultiDiGraph() if G.is_multigraph() else nx.DiGraph()
     reachable = nx.descendants(G, seed_token) | {seed_token}
     return G.subgraph(reachable).copy()
 

@@ -46,7 +46,12 @@ def try_detect(st: HubState, case: Case) -> bool:
         build = getattr(mod, "build_ring_record")
     except (ImportError, AttributeError):
         return False
-    ring = build([b for b in st.beacons if b.token in st.descendants(case.seed_token)], case.seed_token)
+    ring = build(
+        [b for b in st.beacons if b.token in st.descendants(case.seed_token)],
+        case.seed_token,
+        case_id=case.case_id,
+        token_service=st.tokens,
+    )
     if ring is None:
         return False
     attach_ring(st, case, RingRecord.model_validate(ring), actor=("detection-engine", "system"))

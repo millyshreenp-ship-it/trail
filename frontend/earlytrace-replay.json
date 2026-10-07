@@ -1,0 +1,132 @@
+{
+  "schema_version": "earlytrace.replay.v1",
+  "data_status": "synthetic",
+  "provenance": "earlytrace-sim-1",
+  "notice": "Deterministic offline display data. It contains no raw account, contact, device, IP, credential, exact amount, or message values.",
+  "cases": [
+    {
+      "id": "merchant_allow",
+      "label": "Protected merchant / familiar allow",
+      "event_time": "2026-05-10T09:15:00Z",
+      "source": "SANDBOX_FIXTURE",
+      "consent": "VERIFIED_LOCAL",
+      "participation": "LOCAL_ONLY",
+      "local_only": true,
+      "coverage": 0.94,
+      "action": "ALLOW",
+      "risk_band": "LOW",
+      "score": 0.08,
+      "score_kind": "RISK_INDEX",
+      "calibrated": false,
+      "uncertainty": {"level": "LOW", "reasons": []},
+      "engine_version": "earlytrace-b0b1-heuristic-v1",
+      "calibration_status": "NOT_FITTED",
+      "calibration_id": null,
+      "audit_id": null,
+      "expires_at": null,
+      "unknown_reason": null,
+      "reasons": [
+        {"code": "R_MERCHANT_FANIN", "feature": "merchant_fanin", "value": "merchant"},
+        {"code": "R_B1_MOTIF", "feature": "b1_risk_index", "value": 0.08}
+      ],
+      "timeline": [
+        "Several small synthetic checkouts arrive at one merchant-like payee.",
+        "No rapid onward transfer is visible before the subject event."
+      ],
+      "safe_copy": "Legitimate merchant fan-in is a protected lookalike. No step-up is suggested."
+    },
+    {
+      "id": "urgent_new_payee",
+      "label": "Urgent new beneficiary / step-up",
+      "event_time": "2026-05-18T11:02:00Z",
+      "source": "SANDBOX_FIXTURE",
+      "consent": "VERIFIED_LOCAL",
+      "participation": "LOCAL_ONLY",
+      "local_only": true,
+      "coverage": 0.78,
+      "action": "STEP_UP",
+      "risk_band": "ELEVATED",
+      "score": 0.56,
+      "score_kind": "RISK_INDEX",
+      "calibrated": false,
+      "uncertainty": {"level": "MEDIUM", "reasons": ["new payee; onward movement not yet visible"]},
+      "engine_version": "earlytrace-b0b1-heuristic-v1",
+      "calibration_status": "NOT_FITTED",
+      "calibration_id": null,
+      "audit_id": null,
+      "expires_at": null,
+      "unknown_reason": null,
+      "reasons": [
+        {"code": "R_URGENT_NEW_PAYEE", "feature": "urgent_context", "value": "new"},
+        {"code": "R_NEW_PAYEE", "feature": "new_payee_no_onward", "value": "new"}
+      ],
+      "timeline": [
+        "Subject payment is marked urgent and the beneficiary is new.",
+        "Future onward movement is excluded from this pre-authorisation view."
+      ],
+      "safe_copy": "Ask the customer to verify the urgent new beneficiary. This is not a finding that the payee is a mule."
+    },
+    {
+      "id": "rapid_forward_review",
+      "label": "Rapid forward / analyst review",
+      "event_time": "2026-05-20T14:20:00Z",
+      "source": "STAGING_REGISTERED_FIXTURE",
+      "consent": "VERIFIED_CROSS_INSTITUTION",
+      "participation": "FULL",
+      "local_only": false,
+      "coverage": 1.0,
+      "action": "ANALYST_REVIEW",
+      "risk_band": "HIGH",
+      "score": 0.81,
+      "score_kind": "RISK_INDEX",
+      "calibrated": false,
+      "uncertainty": {"level": "MEDIUM", "reasons": ["motif is visible; score remains uncalibrated"]},
+      "engine_version": "earlytrace-b0b1-heuristic-v1",
+      "calibration_status": "NOT_FITTED",
+      "calibration_id": null,
+      "audit_id": null,
+      "expires_at": null,
+      "unknown_reason": null,
+      "reasons": [
+        {"code": "R_RAPID_FORWARD", "feature": "rapid_forward_ratio", "value": 0.92},
+        {"code": "R_FAN_IN", "feature": "fan_in", "value": 0.75}
+      ],
+      "timeline": [
+        "Earlier inbound value reaches the payee.",
+        "An onward transfer follows inside the visible short-hop window."
+      ],
+      "safe_copy": "Queue this for a person. Review is advisory and does not freeze, reject, reverse, or report."
+    },
+    {
+      "id": "hub_outage_unknown",
+      "label": "Hub outage / local-only unknown",
+      "event_time": "2026-05-22T16:45:00Z",
+      "source": "SANDBOX_FIXTURE",
+      "consent": "VERIFIED_LOCAL",
+      "participation": "LOCAL_ONLY",
+      "local_only": true,
+      "coverage": 0.50,
+      "action": "UNKNOWN",
+      "risk_band": "UNKNOWN",
+      "score": null,
+      "score_kind": "NONE",
+      "calibrated": false,
+      "uncertainty": {"level": "HIGH", "reasons": ["CONTEXT_UNAVAILABLE"]},
+      "engine_version": "earlytrace-b0b1-heuristic-v1",
+      "calibration_status": "UNAVAILABLE",
+      "calibration_id": null,
+      "audit_id": null,
+      "expires_at": null,
+      "unknown_reason": "CONTEXT_UNAVAILABLE",
+      "reasons": [
+        {"code": "R_HUB_UNAVAILABLE", "feature": "hub_status", "value": "local_only"},
+        {"code": "R_INSUFFICIENT", "feature": "coverage", "value": 0.5}
+      ],
+      "timeline": [
+        "The optional corroboration hub is unavailable.",
+        "Only verified local context is shown; missing evidence is not filled in."
+      ],
+      "safe_copy": "Evidence is incomplete, so the safe result is UNKNOWN. Do not infer fraud from an outage."
+    }
+  ]
+}

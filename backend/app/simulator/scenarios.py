@@ -156,3 +156,47 @@ def scenario_ring_with_legit_receiver(
 
 def all_transactions(scenario: dict[str, Any]) -> list[Transaction]:
     return list(scenario["transactions"])
+
+
+def scenario_preauth_mule_network(*, seed: int = 7, start: datetime | None = None) -> dict[str, Any]:
+    """Deterministic EarlyTrace fixture. Labels are planted by story kind, not by a detector."""
+    from app.config import VERSION
+    from app.simulator.scam_patterns import (
+        GENERATOR_VERSION,
+        LABEL_RULE,
+        PREAUTH_STORY_KINDS,
+        preauth_story_events,
+    )
+
+    start = start or datetime(2026, 6, 1, 9, 0, tzinfo=timezone.utc)
+    events = []
+    labels: dict[str, dict] = {}
+    seq = 1
+    for i, kind in enumerate(PREAUTH_STORY_KINDS):
+        story_start = start + timedelta(days=i * 3)
+        evs, labs, seq = preauth_story_events(kind, seed=seed, start=story_start, seq=seq)
+        events.extend(evs)
+        labels.update(labs)
+    events = sorted(events, key=lambda e: (e.occurred_at, e.event_id))
+    manifest = {
+        "generator_version": GENERATOR_VERSION,
+        "scenario_name": "preauth_mule_network",
+        "seed": seed,
+        "event_count": len(events),
+        "label_generation_rule": LABEL_RULE,
+        "split_boundaries": {
+            "note": "This scenario is a single ordered stream. Evaluation splits are applied by run_synthetic.",
+        },
+        "data_status": "synthetic",
+        "licence": "repository-generated synthetic events; no third-party dataset",
+        "provenance": "Trail simulator stories inspired by documented mule patterns. Not UPI or bank data.",
+        "code_version": VERSION,
+        "stories": list(PREAUTH_STORY_KINDS),
+    }
+    return {
+        "name": "preauth_mule_network",
+        "seed": seed,
+        "events": events,
+        "labels": labels,
+        "manifest": manifest,
+    }

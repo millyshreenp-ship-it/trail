@@ -1,0 +1,1346 @@
+{
+  "benchmark": {
+    "aggregation": {
+      "b1_budget_precision": {
+        "interval": {
+          "high": 1.0,
+          "low": 1.0
+        },
+        "mean": 1.0,
+        "per_seed": {
+          "11": 1.0,
+          "23": 1.0,
+          "47": 1.0,
+          "7": 1.0,
+          "89": 1.0
+        },
+        "scored_seed_n": 5,
+        "seed_n": 5,
+        "status": "descriptive_multi_seed"
+      },
+      "candidates": {
+        "b0": {
+          "budget_slots": {
+            "interval": {
+              "high": 39.0,
+              "low": 37.0
+            },
+            "mean": 37.6,
+            "per_seed": {
+              "11": 39,
+              "23": 38,
+              "47": 37,
+              "7": 37,
+              "89": 37
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "precision": {
+            "interval": {
+              "high": 1.0,
+              "low": 1.0
+            },
+            "mean": 1.0,
+            "per_seed": {
+              "11": 1.0,
+              "23": 1.0,
+              "47": 1.0,
+              "7": 1.0,
+              "89": 1.0
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "recall": {
+            "interval": {
+              "high": 0.039,
+              "low": 0.0373
+            },
+            "mean": 0.0382,
+            "per_seed": {
+              "11": 0.039,
+              "23": 0.0378,
+              "47": 0.0385,
+              "7": 0.0373,
+              "89": 0.0382
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "unknown_n": {
+            "interval": {
+              "high": 0.0,
+              "low": 0.0
+            },
+            "mean": 0.0,
+            "per_seed": {
+              "11": 0,
+              "23": 0,
+              "47": 0,
+              "7": 0,
+              "89": 0
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          }
+        },
+        "b1": {
+          "budget_slots": {
+            "interval": {
+              "high": 39.0,
+              "low": 37.0
+            },
+            "mean": 37.6,
+            "per_seed": {
+              "11": 39,
+              "23": 38,
+              "47": 37,
+              "7": 37,
+              "89": 37
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "precision": {
+            "interval": {
+              "high": 1.0,
+              "low": 1.0
+            },
+            "mean": 1.0,
+            "per_seed": {
+              "11": 1.0,
+              "23": 1.0,
+              "47": 1.0,
+              "7": 1.0,
+              "89": 1.0
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "recall": {
+            "interval": {
+              "high": 0.039,
+              "low": 0.0373
+            },
+            "mean": 0.0382,
+            "per_seed": {
+              "11": 0.039,
+              "23": 0.0378,
+              "47": 0.0385,
+              "7": 0.0373,
+              "89": 0.0382
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "unknown_n": {
+            "interval": {
+              "high": 0.0,
+              "low": 0.0
+            },
+            "mean": 0.0,
+            "per_seed": {
+              "11": 0,
+              "23": 0,
+              "47": 0,
+              "7": 0,
+              "89": 0
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          }
+        },
+        "hgb": {
+          "budget_slots": {
+            "interval": {
+              "high": 39.0,
+              "low": 37.0
+            },
+            "mean": 37.6,
+            "per_seed": {
+              "11": 39,
+              "23": 38,
+              "47": 37,
+              "7": 37,
+              "89": 37
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "precision": {
+            "interval": {
+              "high": 1.0,
+              "low": 1.0
+            },
+            "mean": 1.0,
+            "per_seed": {
+              "11": 1.0,
+              "23": 1.0,
+              "47": 1.0,
+              "7": 1.0,
+              "89": 1.0
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "recall": {
+            "interval": {
+              "high": 0.039,
+              "low": 0.0373
+            },
+            "mean": 0.0382,
+            "per_seed": {
+              "11": 0.039,
+              "23": 0.0378,
+              "47": 0.0385,
+              "7": 0.0373,
+              "89": 0.0382
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "unknown_n": {
+            "interval": {
+              "high": 0.0,
+              "low": 0.0
+            },
+            "mean": 0.0,
+            "per_seed": {
+              "11": 0,
+              "23": 0,
+              "47": 0,
+              "7": 0,
+              "89": 0
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          }
+        }
+      },
+      "completed_seed_n": 5,
+      "operational": {
+        "b0": {
+          "alerts_per_1000_events": {
+            "interval": {
+              "high": 0.0,
+              "low": 0.0
+            },
+            "mean": 0.0,
+            "per_seed": {
+              "11": 0.0,
+              "23": 0.0,
+              "47": 0.0,
+              "7": 0.0,
+              "89": 0.0
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "false_alerts_per_1000_legitimate": {
+            "interval": {
+              "high": 0.0,
+              "low": 0.0
+            },
+            "mean": 0.0,
+            "per_seed": {
+              "11": 0.0,
+              "23": 0.0,
+              "47": 0.0,
+              "7": 0.0,
+              "89": 0.0
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "mean_lead_time_minutes": {
+            "interval": null,
+            "mean": null,
+            "per_seed": {
+              "11": null,
+              "23": null,
+              "47": null,
+              "7": null,
+              "89": null
+            },
+            "scored_seed_n": 0,
+            "seed_n": 5,
+            "status": "no_values"
+          },
+          "policy_event_recall": {
+            "interval": {
+              "high": 0.0,
+              "low": 0.0
+            },
+            "mean": 0.0,
+            "per_seed": {
+              "11": 0.0,
+              "23": 0.0,
+              "47": 0.0,
+              "7": 0.0,
+              "89": 0.0
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "policy_precision": {
+            "interval": null,
+            "mean": null,
+            "per_seed": {
+              "11": null,
+              "23": null,
+              "47": null,
+              "7": null,
+              "89": null
+            },
+            "scored_seed_n": 0,
+            "seed_n": 5,
+            "status": "no_values"
+          },
+          "pr_auc": {
+            "interval": {
+              "high": 0.9593,
+              "low": 0.949
+            },
+            "mean": 0.9542,
+            "per_seed": {
+              "11": 0.9584,
+              "23": 0.9535,
+              "47": 0.949,
+              "7": 0.9593,
+              "89": 0.951
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "story_recall": {
+            "interval": {
+              "high": 0.0,
+              "low": 0.0
+            },
+            "mean": 0.0,
+            "per_seed": {
+              "11": 0.0,
+              "23": 0.0,
+              "47": 0.0,
+              "7": 0.0,
+              "89": 0.0
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          }
+        },
+        "b1": {
+          "alerts_per_1000_events": {
+            "interval": {
+              "high": 131.4,
+              "low": 119.9
+            },
+            "mean": 125.26,
+            "per_seed": {
+              "11": 123.0,
+              "23": 119.9,
+              "47": 126.3,
+              "7": 131.4,
+              "89": 125.7
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "false_alerts_per_1000_legitimate": {
+            "interval": {
+              "high": 20.4,
+              "low": 10.9
+            },
+            "mean": 15.5,
+            "per_seed": {
+              "11": 11.4,
+              "23": 18.4,
+              "47": 10.9,
+              "7": 20.4,
+              "89": 16.4
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "mean_lead_time_minutes": {
+            "interval": {
+              "high": 85.658,
+              "low": 56.5646
+            },
+            "mean": 73.4311,
+            "per_seed": {
+              "11": 72.2929,
+              "23": 69.6402,
+              "47": 85.658,
+              "7": 56.5646,
+              "89": 83.0
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "policy_event_recall": {
+            "interval": {
+              "high": 0.2362,
+              "low": 0.2131
+            },
+            "mean": 0.2279,
+            "per_seed": {
+              "11": 0.2312,
+              "23": 0.2131,
+              "47": 0.2362,
+              "7": 0.2301,
+              "89": 0.2291
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "policy_precision": {
+            "interval": {
+              "high": 0.9578,
+              "low": 0.9264
+            },
+            "mean": 0.9404,
+            "per_seed": {
+              "11": 0.9545,
+              "23": 0.9264,
+              "47": 0.9578,
+              "7": 0.9268,
+              "89": 0.9367
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "pr_auc": {
+            "interval": {
+              "high": 0.9076,
+              "low": 0.8726
+            },
+            "mean": 0.8917,
+            "per_seed": {
+              "11": 0.9076,
+              "23": 0.8726,
+              "47": 0.9005,
+              "7": 0.8915,
+              "89": 0.8861
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "story_recall": {
+            "interval": {
+              "high": 0.6491,
+              "low": 0.5875
+            },
+            "mean": 0.6149,
+            "per_seed": {
+              "11": 0.6326,
+              "23": 0.5943,
+              "47": 0.6108,
+              "7": 0.6491,
+              "89": 0.5875
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          }
+        },
+        "hgb": {
+          "alerts_per_1000_events": {
+            "interval": {
+              "high": 142.1,
+              "low": 136.6
+            },
+            "mean": 139.64,
+            "per_seed": {
+              "11": 139.8,
+              "23": 136.6,
+              "47": 140.2,
+              "7": 142.1,
+              "89": 139.5
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "false_alerts_per_1000_legitimate": {
+            "interval": {
+              "high": 0.0,
+              "low": 0.0
+            },
+            "mean": 0.0,
+            "per_seed": {
+              "11": 0.0,
+              "23": 0.0,
+              "47": 0.0,
+              "7": 0.0,
+              "89": 0.0
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "mean_lead_time_minutes": {
+            "interval": {
+              "high": 1.0873,
+              "low": 0.8921
+            },
+            "mean": 0.9841,
+            "per_seed": {
+              "11": 1.0221,
+              "23": 0.8921,
+              "47": 1.0873,
+              "7": 0.9416,
+              "89": 0.9774
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "policy_event_recall": {
+            "interval": {
+              "high": 0.2753,
+              "low": 0.262
+            },
+            "mean": 0.2702,
+            "per_seed": {
+              "11": 0.2753,
+              "23": 0.262,
+              "47": 0.2737,
+              "7": 0.2684,
+              "89": 0.2714
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "policy_precision": {
+            "interval": {
+              "high": 1.0,
+              "low": 1.0
+            },
+            "mean": 1.0,
+            "per_seed": {
+              "11": 1.0,
+              "23": 1.0,
+              "47": 1.0,
+              "7": 1.0,
+              "89": 1.0
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "pr_auc": {
+            "interval": {
+              "high": 0.97,
+              "low": 0.9625
+            },
+            "mean": 0.9659,
+            "per_seed": {
+              "11": 0.97,
+              "23": 0.9628,
+              "47": 0.965,
+              "7": 0.9691,
+              "89": 0.9625
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          },
+          "story_recall": {
+            "interval": {
+              "high": 0.4371,
+              "low": 0.3987
+            },
+            "mean": 0.4223,
+            "per_seed": {
+              "11": 0.4345,
+              "23": 0.4371,
+              "47": 0.3987,
+              "7": 0.4255,
+              "89": 0.4156
+            },
+            "scored_seed_n": 5,
+            "seed_n": 5,
+            "status": "descriptive_multi_seed"
+          }
+        }
+      },
+      "requested_seed_n": 5,
+      "status": "descriptive_multi_seed",
+      "support_gate": "supported"
+    },
+    "claim": "descriptive multi-seed aggregation on synthetic data only; not a population/generalisation or scientific-win claim",
+    "completed_seeds": [
+      7,
+      11,
+      23,
+      47,
+      89
+    ],
+    "configuration": {
+      "calendar_days": 180,
+      "guard_seconds": 5364000,
+      "held_out_morphology": "split_value",
+      "institutions": [
+        "BANK_A",
+        "BANK_B",
+        "BANK_C"
+      ],
+      "max_declared_story_duration_seconds": 5277600,
+      "scenario_mixture": {
+        "delayed_hop": 0.07692307692307693,
+        "familiar_payment": 0.07692307692307693,
+        "fanin": 0.07692307692307693,
+        "fanout": 0.07692307692307693,
+        "household": 0.07692307692307693,
+        "merchant_burst": 0.07692307692307693,
+        "new_beneficiary": 0.07692307692307693,
+        "partial_visibility": 0.07692307692307693,
+        "pass_through": 0.07692307692307693,
+        "rapid_forward": 0.07692307692307693,
+        "safe_new_payee": 0.07692307692307693,
+        "salary_rent_refund": 0.07692307692307693,
+        "split_value": 0.07692307692307693
+      },
+      "scenario_revision": "lookalikes-v2",
+      "seeds": [
+        7,
+        11,
+        23,
+        47,
+        89
+      ],
+      "split_fractions": {
+        "calibration": 0.2,
+        "test": 0.2,
+        "train": 0.6
+      },
+      "story_count": 3000,
+      "volume_target": null
+    },
+    "run_id": "sim2-multiseed-4dcc0e560c74a751"
+  },
+  "cases": [
+    {
+      "amount_bucket": "0_1k",
+      "audit": [],
+      "decision": {
+        "action": "ALLOW",
+        "as_of": "2026-09-27T05:18:13Z",
+        "audit_id": null,
+        "b0_feature_contract": "b0.v2",
+        "b0_feature_hash": "08081b6519dda4dae6f8989abb0cb1625a86b4ea87e9a87b00a4975d91bab585",
+        "b1_feature_contract": "motif.v2",
+        "b1_feature_hash": "316fdf1424d0e90b1c1862bf31e92e920ed1c9fb4f1acf191354d5b1e3fcbbba",
+        "calibrated": false,
+        "calibration_id": null,
+        "calibration_status": "NOT_FITTED",
+        "consent_outcome": "VERIFIED_LOCAL",
+        "engine_version": "earlytrace-b0b1-heuristic-v2",
+        "event_id": "evt_s2_002411_005",
+        "evidence": [
+          {
+            "coverage": 1.0,
+            "evidence_id": "ev_s2_002411_005",
+            "expires_at": "2026-09-27T11:18:13Z",
+            "institution_id": "BANK_B",
+            "kind": "motif",
+            "observed_at": "2026-09-27T05:18:13Z",
+            "summary_code": "current_event"
+          }
+        ],
+        "evidence_coverage": 1.0,
+        "execution_mode": "LIVE_SYNTHETIC",
+        "expires_at": "2026-09-27T05:33:13Z",
+        "irreversible": false,
+        "local_only": false,
+        "participation": "FULL",
+        "reasons": [
+          {
+            "code": "R_MERCHANT_FANIN",
+            "feature": "merchant_fanin",
+            "template_id": "r_merchant_fanin",
+            "value": null
+          },
+          {
+            "code": "R_B0_HEURISTIC",
+            "feature": "b0_risk_index",
+            "template_id": "r_b0_heuristic",
+            "value": 0.255
+          },
+          {
+            "code": "R_B1_MOTIF",
+            "feature": "b1_risk_index",
+            "template_id": "r_b1_motif",
+            "value": 0.06
+          }
+        ],
+        "risk_band": "LOW",
+        "schema_version": "earlytrace.decision.v2",
+        "score": 0.1477,
+        "score_kind": "RISK_INDEX",
+        "subject_event_time": "2026-09-27T05:18:13Z",
+        "trace_id": "trace_s2_002411_005",
+        "uncertainty": {
+          "level": "LOW",
+          "reasons": []
+        },
+        "unknown_reason": null
+      },
+      "edges": [
+        {
+          "amount_bucket": "0_1k",
+          "id": "evt_s2_002411_000",
+          "occurred_at": "2026-09-27T05:03:13+00:00",
+          "pending": false,
+          "source": "case_d003146d2ef552eba1b0791c79fd87c8",
+          "target": "case_40e76b69d151a3aa8c40fbd2099ad620"
+        },
+        {
+          "amount_bucket": "0_1k",
+          "id": "evt_s2_002411_001",
+          "occurred_at": "2026-09-27T05:06:13+00:00",
+          "pending": false,
+          "source": "case_d0272686dabd532e41a36eaa923dad58",
+          "target": "case_40e76b69d151a3aa8c40fbd2099ad620"
+        },
+        {
+          "amount_bucket": "0_1k",
+          "id": "evt_s2_002411_002",
+          "occurred_at": "2026-09-27T05:09:13+00:00",
+          "pending": false,
+          "source": "case_98f9325426b429d7bcfa0efb2c369784",
+          "target": "case_40e76b69d151a3aa8c40fbd2099ad620"
+        },
+        {
+          "amount_bucket": "0_1k",
+          "id": "evt_s2_002411_003",
+          "occurred_at": "2026-09-27T05:12:13+00:00",
+          "pending": false,
+          "source": "case_cc63ff8509892c8259ce4fdcc187ae88",
+          "target": "case_40e76b69d151a3aa8c40fbd2099ad620"
+        },
+        {
+          "amount_bucket": "0_1k",
+          "id": "evt_s2_002411_004",
+          "occurred_at": "2026-09-27T05:15:13+00:00",
+          "pending": false,
+          "source": "case_012d2bae5ee31d81ac6504cb576296f5",
+          "target": "case_40e76b69d151a3aa8c40fbd2099ad620"
+        },
+        {
+          "amount_bucket": "0_1k",
+          "id": "evt_s2_002411_005",
+          "occurred_at": "2026-09-27T05:18:13+00:00",
+          "pending": true,
+          "source": "case_6aacea311b8a60cb4d7dea8d9ec80046",
+          "target": "case_40e76b69d151a3aa8c40fbd2099ad620"
+        }
+      ],
+      "event_source": "OFFLINE_SYNTHETIC_REPLAY",
+      "excluded_future_events": true,
+      "id": "merchant_burst",
+      "institution": "BANK_B",
+      "nodes": [
+        {
+          "id": "case_d003146d2ef552eba1b0791c79fd87c8",
+          "institution": "BANK_B",
+          "label": "Counterparty",
+          "subject": false
+        },
+        {
+          "id": "case_40e76b69d151a3aa8c40fbd2099ad620",
+          "institution": "BANK_B",
+          "label": "Subject payee",
+          "subject": true
+        },
+        {
+          "id": "case_d0272686dabd532e41a36eaa923dad58",
+          "institution": "BANK_B",
+          "label": "Counterparty",
+          "subject": false
+        },
+        {
+          "id": "case_98f9325426b429d7bcfa0efb2c369784",
+          "institution": "BANK_B",
+          "label": "Counterparty",
+          "subject": false
+        },
+        {
+          "id": "case_cc63ff8509892c8259ce4fdcc187ae88",
+          "institution": "BANK_B",
+          "label": "Counterparty",
+          "subject": false
+        },
+        {
+          "id": "case_012d2bae5ee31d81ac6504cb576296f5",
+          "institution": "BANK_B",
+          "label": "Counterparty",
+          "subject": false
+        },
+        {
+          "id": "case_6aacea311b8a60cb4d7dea8d9ec80046",
+          "institution": "BANK_B",
+          "label": "Counterparty",
+          "subject": false
+        }
+      ],
+      "title": "Merchant checkout burst"
+    },
+    {
+      "amount_bucket": "50k_100k",
+      "audit": [],
+      "decision": {
+        "action": "STEP_UP",
+        "as_of": "2026-09-26T20:31:29Z",
+        "audit_id": null,
+        "b0_feature_contract": "b0.v2",
+        "b0_feature_hash": "08081b6519dda4dae6f8989abb0cb1625a86b4ea87e9a87b00a4975d91bab585",
+        "b1_feature_contract": "motif.v2",
+        "b1_feature_hash": "316fdf1424d0e90b1c1862bf31e92e920ed1c9fb4f1acf191354d5b1e3fcbbba",
+        "calibrated": false,
+        "calibration_id": null,
+        "calibration_status": "NOT_FITTED",
+        "consent_outcome": "VERIFIED_CROSS_INSTITUTION",
+        "engine_version": "earlytrace-b0b1-heuristic-v2",
+        "event_id": "evt_s2_002405_000",
+        "evidence": [
+          {
+            "coverage": 1.0,
+            "evidence_id": "ev_s2_002405_000",
+            "expires_at": "2026-09-27T02:31:29Z",
+            "institution_id": "BANK_A",
+            "kind": "motif",
+            "observed_at": "2026-09-26T20:31:29Z",
+            "summary_code": "current_event"
+          }
+        ],
+        "evidence_coverage": 1.0,
+        "execution_mode": "LIVE_SYNTHETIC",
+        "expires_at": "2026-09-26T20:46:29Z",
+        "irreversible": false,
+        "local_only": false,
+        "participation": "FULL",
+        "reasons": [
+          {
+            "code": "R_URGENT_NEW_PAYEE",
+            "feature": "urgent_context",
+            "template_id": "r_urgent_new_payee",
+            "value": null
+          },
+          {
+            "code": "R_B0_HEURISTIC",
+            "feature": "b0_risk_index",
+            "template_id": "r_b0_heuristic",
+            "value": 0.28
+          },
+          {
+            "code": "R_B1_MOTIF",
+            "feature": "b1_risk_index",
+            "template_id": "r_b1_motif",
+            "value": 0.3
+          }
+        ],
+        "risk_band": "ELEVATED",
+        "schema_version": "earlytrace.decision.v2",
+        "score": 0.291,
+        "score_kind": "RISK_INDEX",
+        "subject_event_time": "2026-09-26T20:31:29Z",
+        "trace_id": "trace_s2_002405_000",
+        "uncertainty": {
+          "level": "LOW",
+          "reasons": []
+        },
+        "unknown_reason": null
+      },
+      "edges": [
+        {
+          "amount_bucket": "50k_100k",
+          "id": "evt_s2_002405_000",
+          "occurred_at": "2026-09-26T20:31:29+00:00",
+          "pending": true,
+          "source": "case_34b3f7f5907cdcaeec2f878eea7eb0fd",
+          "target": "case_c7cb37987150d0860fe11539c5419fef"
+        }
+      ],
+      "event_source": "OFFLINE_SYNTHETIC_REPLAY",
+      "excluded_future_events": true,
+      "id": "new_beneficiary",
+      "institution": "BANK_A",
+      "nodes": [
+        {
+          "id": "case_34b3f7f5907cdcaeec2f878eea7eb0fd",
+          "institution": "BANK_A",
+          "label": "Counterparty",
+          "subject": false
+        },
+        {
+          "id": "case_c7cb37987150d0860fe11539c5419fef",
+          "institution": "BANK_A",
+          "label": "Subject payee",
+          "subject": true
+        }
+      ],
+      "title": "Urgent new beneficiary"
+    },
+    {
+      "amount_bucket": "10k_50k",
+      "audit": [],
+      "decision": {
+        "action": "ANALYST_REVIEW",
+        "as_of": "2026-09-26T18:52:48Z",
+        "audit_id": null,
+        "b0_feature_contract": "b0.v2",
+        "b0_feature_hash": "08081b6519dda4dae6f8989abb0cb1625a86b4ea87e9a87b00a4975d91bab585",
+        "b1_feature_contract": "motif.v2",
+        "b1_feature_hash": "316fdf1424d0e90b1c1862bf31e92e920ed1c9fb4f1acf191354d5b1e3fcbbba",
+        "calibrated": false,
+        "calibration_id": null,
+        "calibration_status": "NOT_FITTED",
+        "consent_outcome": "VERIFIED_LOCAL",
+        "engine_version": "earlytrace-b0b1-heuristic-v2",
+        "event_id": "evt_s2_002404_004",
+        "evidence": [
+          {
+            "coverage": 1.0,
+            "evidence_id": "ev_s2_002404_004",
+            "expires_at": "2026-09-27T00:52:48Z",
+            "institution_id": "BANK_B",
+            "kind": "motif",
+            "observed_at": "2026-09-26T18:52:48Z",
+            "summary_code": "current_event"
+          }
+        ],
+        "evidence_coverage": 1.0,
+        "execution_mode": "LIVE_SYNTHETIC",
+        "expires_at": "2026-09-26T19:52:48Z",
+        "irreversible": false,
+        "local_only": false,
+        "participation": "FULL",
+        "reasons": [
+          {
+            "code": "R_B1_MOTIF",
+            "feature": "motif_score",
+            "template_id": "r_b1_motif",
+            "value": null
+          },
+          {
+            "code": "R_B0_HEURISTIC",
+            "feature": "b0_risk_index",
+            "template_id": "r_b0_heuristic",
+            "value": 0.3985
+          },
+          {
+            "code": "R_B1_MOTIF",
+            "feature": "b1_risk_index",
+            "template_id": "r_b1_motif",
+            "value": 0.344
+          }
+        ],
+        "risk_band": "HIGH",
+        "schema_version": "earlytrace.decision.v2",
+        "score": 0.3685,
+        "score_kind": "RISK_INDEX",
+        "subject_event_time": "2026-09-26T18:52:48Z",
+        "trace_id": "trace_s2_002404_004",
+        "uncertainty": {
+          "level": "LOW",
+          "reasons": []
+        },
+        "unknown_reason": null
+      },
+      "edges": [
+        {
+          "amount_bucket": "100k_500k",
+          "id": "evt_s2_002404_000",
+          "occurred_at": "2026-09-26T18:46:48+00:00",
+          "pending": false,
+          "source": "case_634ad662d600be7da1b49ffc4c9c4f2e",
+          "target": "case_fd687119c8c393279b6f219367976303"
+        },
+        {
+          "amount_bucket": "10k_50k",
+          "id": "evt_s2_002404_001",
+          "occurred_at": "2026-09-26T18:49:48+00:00",
+          "pending": false,
+          "source": "case_fd687119c8c393279b6f219367976303",
+          "target": "case_1a818ff4a4b5af544077c6272f61d5b3"
+        },
+        {
+          "amount_bucket": "10k_50k",
+          "id": "evt_s2_002404_002",
+          "occurred_at": "2026-09-26T18:50:48+00:00",
+          "pending": false,
+          "source": "case_fd687119c8c393279b6f219367976303",
+          "target": "case_2c375744ba710fc14265a095ce5b8e51"
+        },
+        {
+          "amount_bucket": "10k_50k",
+          "id": "evt_s2_002404_003",
+          "occurred_at": "2026-09-26T18:51:48+00:00",
+          "pending": false,
+          "source": "case_fd687119c8c393279b6f219367976303",
+          "target": "case_fe7c3c49bfc55a98558b2816244bb546"
+        },
+        {
+          "amount_bucket": "10k_50k",
+          "id": "evt_s2_002404_004",
+          "occurred_at": "2026-09-26T18:52:48+00:00",
+          "pending": true,
+          "source": "case_fd687119c8c393279b6f219367976303",
+          "target": "case_c78f5585298f3280f5a187e2037ba235"
+        }
+      ],
+      "event_source": "OFFLINE_SYNTHETIC_REPLAY",
+      "excluded_future_events": true,
+      "id": "fanout",
+      "institution": "BANK_B",
+      "nodes": [
+        {
+          "id": "case_634ad662d600be7da1b49ffc4c9c4f2e",
+          "institution": "BANK_B",
+          "label": "Counterparty",
+          "subject": false
+        },
+        {
+          "id": "case_fd687119c8c393279b6f219367976303",
+          "institution": "BANK_B",
+          "label": "Counterparty",
+          "subject": false
+        },
+        {
+          "id": "case_1a818ff4a4b5af544077c6272f61d5b3",
+          "institution": "BANK_B",
+          "label": "Counterparty",
+          "subject": false
+        },
+        {
+          "id": "case_2c375744ba710fc14265a095ce5b8e51",
+          "institution": "BANK_B",
+          "label": "Counterparty",
+          "subject": false
+        },
+        {
+          "id": "case_fe7c3c49bfc55a98558b2816244bb546",
+          "institution": "BANK_B",
+          "label": "Counterparty",
+          "subject": false
+        },
+        {
+          "id": "case_c78f5585298f3280f5a187e2037ba235",
+          "institution": "BANK_B",
+          "label": "Subject payee",
+          "subject": true
+        }
+      ],
+      "title": "Rapid onward distribution"
+    },
+    {
+      "amount_bucket": "1k_10k",
+      "audit": [],
+      "decision": {
+        "action": "WARN_AND_VERIFY",
+        "as_of": "2026-09-26T14:31:50Z",
+        "audit_id": null,
+        "b0_feature_contract": "b0.v2",
+        "b0_feature_hash": "08081b6519dda4dae6f8989abb0cb1625a86b4ea87e9a87b00a4975d91bab585",
+        "b1_feature_contract": "motif.v2",
+        "b1_feature_hash": "316fdf1424d0e90b1c1862bf31e92e920ed1c9fb4f1acf191354d5b1e3fcbbba",
+        "calibrated": false,
+        "calibration_id": null,
+        "calibration_status": "NOT_FITTED",
+        "consent_outcome": "VERIFIED_LOCAL",
+        "engine_version": "earlytrace-b0b1-heuristic-v2",
+        "event_id": "evt_s2_002401_000",
+        "evidence": [
+          {
+            "coverage": 1.0,
+            "evidence_id": "ev_s2_002401_000",
+            "expires_at": "2026-09-26T20:31:50Z",
+            "institution_id": "BANK_A",
+            "kind": "motif",
+            "observed_at": "2026-09-26T14:31:50Z",
+            "summary_code": "current_event"
+          }
+        ],
+        "evidence_coverage": 1.0,
+        "execution_mode": "LIVE_SYNTHETIC",
+        "expires_at": "2026-09-26T14:46:50Z",
+        "irreversible": false,
+        "local_only": false,
+        "participation": "FULL",
+        "reasons": [
+          {
+            "code": "R_NEW_PAYEE",
+            "feature": "new_payee_no_onward",
+            "template_id": "r_new_payee",
+            "value": null
+          },
+          {
+            "code": "R_B0_HEURISTIC",
+            "feature": "b0_risk_index",
+            "template_id": "r_b0_heuristic",
+            "value": 0.28
+          },
+          {
+            "code": "R_B1_MOTIF",
+            "feature": "b1_risk_index",
+            "template_id": "r_b1_motif",
+            "value": 0.16
+          }
+        ],
+        "risk_band": "ELEVATED",
+        "schema_version": "earlytrace.decision.v2",
+        "score": 0.214,
+        "score_kind": "RISK_INDEX",
+        "subject_event_time": "2026-09-26T14:31:50Z",
+        "trace_id": "trace_s2_002401_000",
+        "uncertainty": {
+          "level": "LOW",
+          "reasons": []
+        },
+        "unknown_reason": null
+      },
+      "edges": [
+        {
+          "amount_bucket": "1k_10k",
+          "id": "evt_s2_002401_000",
+          "occurred_at": "2026-09-26T14:31:50+00:00",
+          "pending": true,
+          "source": "case_c9c84b0392f2a902090c7967e9ba1e10",
+          "target": "case_4b40d22e5b5b11963ac52428eceb0bc7"
+        }
+      ],
+      "event_source": "OFFLINE_SYNTHETIC_REPLAY",
+      "excluded_future_events": true,
+      "id": "safe_new_payee",
+      "institution": "BANK_A",
+      "nodes": [
+        {
+          "id": "case_c9c84b0392f2a902090c7967e9ba1e10",
+          "institution": "BANK_A",
+          "label": "Counterparty",
+          "subject": false
+        },
+        {
+          "id": "case_4b40d22e5b5b11963ac52428eceb0bc7",
+          "institution": "BANK_A",
+          "label": "Subject payee",
+          "subject": true
+        }
+      ],
+      "title": "Legitimate new beneficiary"
+    },
+    {
+      "amount_bucket": "10k_50k",
+      "audit": [],
+      "decision": {
+        "action": "ALLOW",
+        "as_of": "2026-09-28T03:43:36Z",
+        "audit_id": null,
+        "b0_feature_contract": "b0.v2",
+        "b0_feature_hash": "08081b6519dda4dae6f8989abb0cb1625a86b4ea87e9a87b00a4975d91bab585",
+        "b1_feature_contract": "motif.v2",
+        "b1_feature_hash": "316fdf1424d0e90b1c1862bf31e92e920ed1c9fb4f1acf191354d5b1e3fcbbba",
+        "calibrated": false,
+        "calibration_id": null,
+        "calibration_status": "NOT_FITTED",
+        "consent_outcome": "VERIFIED_LOCAL",
+        "engine_version": "earlytrace-b0b1-heuristic-v2",
+        "event_id": "evt_s2_002409_001",
+        "evidence": [
+          {
+            "coverage": 1.0,
+            "evidence_id": "ev_s2_002409_001",
+            "expires_at": "2026-09-28T09:43:36Z",
+            "institution_id": "BANK_A",
+            "kind": "motif",
+            "observed_at": "2026-09-28T03:43:36Z",
+            "summary_code": "current_event"
+          }
+        ],
+        "evidence_coverage": 1.0,
+        "execution_mode": "LIVE_SYNTHETIC",
+        "expires_at": "2026-09-28T03:58:36Z",
+        "irreversible": false,
+        "local_only": false,
+        "participation": "FULL",
+        "reasons": [
+          {
+            "code": "R_NO_STRONG_MOTIF",
+            "feature": "motif_score",
+            "template_id": "r_no_strong_motif",
+            "value": null
+          },
+          {
+            "code": "R_B0_HEURISTIC",
+            "feature": "b0_risk_index",
+            "template_id": "r_b0_heuristic",
+            "value": 0.18
+          },
+          {
+            "code": "R_B1_MOTIF",
+            "feature": "b1_risk_index",
+            "template_id": "r_b1_motif",
+            "value": 0.0
+          }
+        ],
+        "risk_band": "LOW",
+        "schema_version": "earlytrace.decision.v2",
+        "score": 0.081,
+        "score_kind": "RISK_INDEX",
+        "subject_event_time": "2026-09-28T03:43:36Z",
+        "trace_id": "trace_s2_002409_001",
+        "uncertainty": {
+          "level": "LOW",
+          "reasons": []
+        },
+        "unknown_reason": null
+      },
+      "edges": [
+        {
+          "amount_bucket": "50k_100k",
+          "id": "evt_s2_002409_000",
+          "occurred_at": "2026-09-27T01:43:36+00:00",
+          "pending": false,
+          "source": "case_40391ea5f88ca0aa94fc76d506f171fa",
+          "target": "case_d30a71f735fa0e0e521919e5d52f3ab3"
+        },
+        {
+          "amount_bucket": "10k_50k",
+          "id": "evt_s2_002409_001",
+          "occurred_at": "2026-09-28T03:43:36+00:00",
+          "pending": true,
+          "source": "case_d30a71f735fa0e0e521919e5d52f3ab3",
+          "target": "case_403d7ca76c9ed0c814552b445280e7e8"
+        }
+      ],
+      "event_source": "OFFLINE_SYNTHETIC_REPLAY",
+      "excluded_future_events": true,
+      "id": "pass_through",
+      "institution": "BANK_A",
+      "nodes": [
+        {
+          "id": "case_40391ea5f88ca0aa94fc76d506f171fa",
+          "institution": "BANK_A",
+          "label": "Counterparty",
+          "subject": false
+        },
+        {
+          "id": "case_d30a71f735fa0e0e521919e5d52f3ab3",
+          "institution": "BANK_A",
+          "label": "Counterparty",
+          "subject": false
+        },
+        {
+          "id": "case_403d7ca76c9ed0c814552b445280e7e8",
+          "institution": "BANK_A",
+          "label": "Subject payee",
+          "subject": true
+        }
+      ],
+      "title": "Salary and rent payment"
+    },
+    {
+      "amount_bucket": "10k_50k",
+      "audit": [],
+      "decision": {
+        "action": "UNKNOWN",
+        "as_of": "2026-09-27T17:31:29Z",
+        "audit_id": null,
+        "b0_feature_contract": "none",
+        "b0_feature_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "b1_feature_contract": "none",
+        "b1_feature_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "calibrated": false,
+        "calibration_id": null,
+        "calibration_status": "UNAVAILABLE",
+        "consent_outcome": "VERIFIED_CROSS_INSTITUTION",
+        "engine_version": "earlytrace-b0b1-heuristic-v2",
+        "event_id": "evt_s2_002420_002",
+        "evidence": [],
+        "evidence_coverage": 0.0,
+        "execution_mode": "LIVE_SYNTHETIC",
+        "expires_at": "2026-09-27T17:46:29Z",
+        "irreversible": false,
+        "local_only": false,
+        "participation": "FULL",
+        "reasons": [
+          {
+            "code": "R_INSUFFICIENT",
+            "feature": "coverage",
+            "template_id": "r_insufficient",
+            "value": null
+          }
+        ],
+        "risk_band": "UNKNOWN",
+        "schema_version": "earlytrace.decision.v2",
+        "score": null,
+        "score_kind": "NONE",
+        "subject_event_time": "2026-09-27T17:31:29Z",
+        "trace_id": "trace_s2_002420_002",
+        "uncertainty": {
+          "level": "HIGH",
+          "reasons": []
+        },
+        "unknown_reason": "CONTEXT_UNAVAILABLE"
+      },
+      "edges": [
+        {
+          "amount_bucket": "10k_50k",
+          "id": "evt_s2_002420_002",
+          "occurred_at": "2026-09-27T17:31:29+00:00",
+          "pending": true,
+          "source": "case_87cb1c4c119861f8bdb201cd7c9755a8",
+          "target": "case_dd1574b041cafff575ac56fc16b431bc"
+        }
+      ],
+      "event_source": "OFFLINE_SYNTHETIC_REPLAY",
+      "excluded_future_events": true,
+      "id": "partial_visibility",
+      "institution": "BANK_C",
+      "nodes": [
+        {
+          "id": "case_87cb1c4c119861f8bdb201cd7c9755a8",
+          "institution": "BANK_C",
+          "label": "Counterparty",
+          "subject": false
+        },
+        {
+          "id": "case_dd1574b041cafff575ac56fc16b431bc",
+          "institution": "BANK_C",
+          "label": "Subject payee",
+          "subject": true
+        }
+      ],
+      "title": "Corroboration unavailable"
+    }
+  ],
+  "data_status": "synthetic",
+  "schema_version": "earlytrace.workspace.v2"
+}

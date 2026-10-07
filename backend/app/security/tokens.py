@@ -68,3 +68,45 @@ class TokenService:
         follow a person across unrelated cases without an approved ring merge."""
         d = hmac.new(self.case_key(case_id), account_id.encode(), hashlib.sha256).digest()[:12]
         return "acc_" + d.hex()
+
+    def to_live_token(self, local_reference: str, purpose: str, key_version: str, scope_id: str | None = None) -> str:
+        """Convert a trusted local reference to the only v2 live-token grammar."""
+        if not isinstance(local_reference, str) or not local_reference:
+            raise ValueError("local reference is invalid")
+        if not purpose or not key_version:
+            raise ValueError("token parameters are invalid")
+        scope = scope_id or "global"
+        message = b"live" + SEP + purpose.encode() + SEP + key_version.encode() + SEP + scope.encode() + SEP + local_reference.encode()
+        return "tok_" + hmac.new(self._master, message, hashlib.sha256).hexdigest()[:32]
+
+    def to_case_display_pseudonym(self, case_id: str, local_reference: str, key_version: str = "v1") -> str:
+        if not case_id or not key_version or not isinstance(local_reference, str) or not local_reference:
+            raise ValueError("pseudonym parameters are invalid")
+        message = b"case-display" + SEP + key_version.encode() + SEP + case_id.encode() + SEP + local_reference.encode()
+        return "case_" + hmac.new(self._master, message, hashlib.sha256).hexdigest()[:32]
+
+
+class TrustedReferenceAdapter:
+    """The sole boundary where an internal raw reference may be supplied.
+
+    It returns a token immediately and retains neither the reference nor a
+    serialised representation of it.
+    """
+    def __init__(self, token_service: TokenService):
+        self._tokens = token_service
+
+    def to_live_token(self, local_reference: str, purpose: str, key_version: str, scope_id: str | None = None) -> str:
+        return self._tokens.to_live_token(local_reference, purpose, key_version, scope_id)
+
+    def convert(self, local_reference: str, *, purpose: str, key_version: str, scope_id: str | None = None) -> str:
+        return self.to_live_token(local_reference, purpose, key_version, scope_id)
+
+
+def to_live_token(local_reference: str, purpose: str, key_version: str, scope_id: str | None = None, *, token_service: TokenService | None = None) -> str:
+    service = token_service or TokenService()
+    return service.to_live_token(local_reference, purpose, key_version, scope_id)
+
+
+def to_case_display_pseudonym(case_id: str, local_reference: str, key_version: str = "v1", *, token_service: TokenService | None = None) -> str:
+    service = token_service or TokenService()
+    return service.to_case_display_pseudonym(case_id, local_reference, key_version)

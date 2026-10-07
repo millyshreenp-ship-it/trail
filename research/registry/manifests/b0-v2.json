@@ -1,0 +1,32 @@
+{
+  "manifest_version": "earlytrace-research-manifest-v2",
+  "candidate": "b0-v2",
+  "research_only": true,
+  "engine_version": "earlytrace-b0b1-heuristic-v2",
+  "feature_contract": {
+    "name": "b0.v2",
+    "dimension": 6,
+    "ordered_names": ["fwd_ratio_15m", "t_fwd_median", "in_uniq_senders_1h", "out_fan_out_1h", "acct_age_days", "activity_jump"],
+    "hash": "08081b6519dda4dae6f8989abb0cb1625a86b4ea87e9a87b00a4975d91bab585",
+    "value_type": "finite_float"
+  },
+  "generator_version": "earlytrace-sim-2",
+  "event_checksum": "run-specific",
+  "label_checksum": "run-specific",
+  "vector_checksum": "run-specific",
+  "split_checksum": "run-specific",
+  "unknown_policy": "UNKNOWN rows are abstentions and are never ranked or backfilled",
+  "class_weights": null,
+  "hyperparameters": {"weights": [0.32, 0.18, 0.12, 0.15, 0.1, 0.13], "normalizers": "locked b0.v2 contract"},
+  "seed": 0,
+  "calibration": {"method": "none", "owner": "not_calibrated", "status": "not_fitted"},
+  "threshold_rule": "policy_action_or_floor_budget_on_calibration_only",
+  "threshold": null,
+  "artifact_checksum": null,
+  "dependency_lock_hash": "8a73f28a974a5dd516cdf90c82d0463de85081e0aa00d5dd87f113832b5248d2",
+  "dependency_lock_status": "verified",
+  "library_versions": {"python": "run-specific"},
+  "score_semantics": "risk_index; not a probability unless a matching calibration artifact is verified",
+  "rmse_policy": "not_optimized; if emitted, lower is better and it is secondary",
+  "registry_status": "template_requires_run_checksums"
+}

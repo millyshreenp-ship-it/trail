@@ -1,0 +1,8 @@
+project_id          = "REPLACE_WITH_CONFIRMED_PROJECT_ID"
+region              = "asia-south1"
+zone                = "asia-south1-a"
+image               = "asia-south1-docker.pkg.dev/PROJECT/REPOSITORY/earlytrace@sha256:REPLACE_WITH_IMAGE_DIGEST"
+registry_repository = "REPOSITORY"
+master_secret_id    = "existing-earlytrace-master-secret"
+users_secret_id     = "existing-earlytrace-hashed-users"
+cors_origin         = "https://staging.example.invalid"

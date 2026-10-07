@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import random
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -34,10 +34,12 @@ from app.simulator.scam_patterns import (
     generate_scam_fanin,
     generate_scam_fanout,
 )
-from app.simulator.scenarios import (
-    scenario_mixed_patterns,
-    scenario_north_star,
-    scenario_ring_with_legit_receiver,
+from app.simulator.scenarios import scenario_mixed_patterns, scenario_north_star, scenario_preauth_mule_network
+from app.simulator.sim2 import (
+    CorpusConfig,
+    generate_preauth_corpus_v2,
+    generate_sim2_corpus,
+    generate_story_corpus,
 )
 
 __all__ = [
@@ -49,7 +51,13 @@ __all__ = [
     "generate_cross_bank_hop",
     "scenario_north_star",
     "scenario_mixed_patterns",
-    "scenario_ring_with_legit_receiver",
+    "scenario_preauth_mule_network",
+    "generate_preauth_corpus",
+    "CorpusConfig",
+    "generate_sim2_corpus",
+    "generate_preauth_corpus_v2",
+    "generate_story_corpus",
+    "write_manifest",
     "write_synthetic_jsonl",
     "transactions_to_dicts",
 ]
@@ -130,7 +138,7 @@ def generate_dataset(
     for acct in LOOKALIKE_LEGIT_ACCOUNTS:
         labels[acct] = "legit"
 
-    all_txs = sorted(legit + lookalikes + suspicious, key=lambda t: t.timestamp)
+    all_txs = sorted(legit + shop + rent + suspicious, key=lambda t: (t.timestamp, t.transaction_id))
     return {
         "transactions": all_txs,
         "labels": labels,
@@ -147,55 +155,82 @@ def generate_dataset(
     }
 
 
-def _ring_meta(subset: list[Transaction], pattern: str) -> dict[str, Any]:
-    """Ground truth for one ring: complaint seed + all mule/ring accounts (victim excluded).
+def generate_preauth_corpus(
+    *,
+    seed: int = 7,
+    n_days: int = 36,
+    stories_per_day: int = 1,
+    config=None,
+    story_count: int | None = None,
+    volume_target: int | None = None,
+    calendar_days: int | None = None,
+    institutions: tuple[str, ...] = ("BANK_A", "BANK_B", "BANK_C"),
+    scenario_mixture=None,
+    mixture=None,
+    held_out_morphology: str | None = None,
+) -> dict[str, Any]:
+    """Generate the frozen v1 corpus unless an explicit sim-2 control is used.
 
-    Seed = first account that receives victim money; for fan-in that is the first feeder.
+    The legacy positional shape remains unchanged. Supplying ``config`` or a
+    sim-2 control makes the versioned story path explicit.
     """
-    first = subset[0]
-    seed = first.source_token if pattern == "fanin" else first.destination_token
-    members = {t.source_token for t in subset} | {t.destination_token for t in subset}
-    if pattern != "fanin":
-        members.discard(first.source_token)  # the victim's own account is not part of the ring
-    return {"pattern": pattern, "seed": seed, "members": sorted(members)}
+    if config is not None or any(value is not None for value in (story_count, volume_target, calendar_days, scenario_mixture, mixture)):
+        from app.simulator.sim2 import DEFAULT_SCENARIO_MIXTURE, CorpusConfig, generate_sim2_corpus
+        selected_config = config or CorpusConfig(
+            seed=seed,
+            calendar_days=calendar_days if calendar_days is not None else n_days,
+            story_count=story_count if volume_target is None else None,
+            volume_target=volume_target,
+            institutions=institutions,
+            scenario_mixture=scenario_mixture if scenario_mixture is not None else (mixture if mixture is not None else DEFAULT_SCENARIO_MIXTURE),
+            held_out_morphology=held_out_morphology if held_out_morphology is not None else "split_value",
+        )
+        return generate_sim2_corpus(selected_config)
+    from app.config import VERSION
+    from app.simulator.scam_patterns import GENERATOR_VERSION, LABEL_RULE, PREAUTH_STORY_KINDS, preauth_story_events
+
+    rng = random.Random(seed)
+    origin = datetime(2026, 5, 1, 8, 0, tzinfo=timezone.utc)
+    events = []
+    labels: dict[str, dict] = {}
+    seq = 1
+    for day in range(n_days):
+        for _k in range(stories_per_day):
+            kind = PREAUTH_STORY_KINDS[rng.randrange(len(PREAUTH_STORY_KINDS))]
+            story_seed = rng.randrange(1, 9000)
+            start = origin + timedelta(days=day, minutes=rng.randrange(0, 600))
+            evs, labs, seq = preauth_story_events(kind, seed=story_seed, start=start, seq=seq)
+            events.extend(evs)
+            labels.update(labs)
+    events = sorted(events, key=lambda e: (e.occurred_at, e.event_id))
+    train_end = origin + timedelta(days=int(n_days * 0.6))
+    cal_end = origin + timedelta(days=int(n_days * 0.8))
+    manifest = {
+        "generator_version": GENERATOR_VERSION,
+        "scenario_name": "preauth_corpus",
+        "seed": seed,
+        "event_count": len(events),
+        "label_generation_rule": LABEL_RULE,
+        "split_boundaries": {
+            "origin": origin.isoformat(),
+            "train_end": train_end.isoformat(),
+            "calibration_end": cal_end.isoformat(),
+            "test_end": (origin + timedelta(days=n_days)).isoformat(),
+            "scheme": "temporal: train < train_end <= calibration < calibration_end <= test",
+        },
+        "data_status": "synthetic",
+        "licence": "repository-generated synthetic events; no third-party dataset",
+        "provenance": "Synthetic payment-event simulator. Not customer, UPI, or bank data.",
+        "code_version": VERSION,
+        "n_days": n_days,
+    }
+    return {"name": "preauth_corpus", "seed": seed, "events": events, "labels": labels, "manifest": manifest}
 
 
-def _namespace(txs: list[Transaction], tag: str) -> list[Transaction]:
-    """Make transaction_ids unique per ring (the pattern generators use fixed id prefixes)."""
-    return [t.model_copy(update={"transaction_id": f"{t.transaction_id}_{tag}"}) for t in txs]
-
-
-def _padded_ring(
-    k: int, rng: random.Random, start: datetime, token_service: TokenService | None
-) -> tuple[list[Transaction], str]:
-    """Varied extra ring #k: rotates chain / fan-out / fan-in / cross-bank hop, random size and bank mix."""
-    insts = ("BANK_A", "BANK_B", "BANK_C", "WALLET_W")
-    pattern = ("chain", "fanout", "fanin", "cross_bank_hop")[k % 4]
-    ts = start.replace(day=1 + (k % 28), hour=8 + (k % 12), minute=rng.randint(0, 40))
-    amt = rng.uniform(15_000, 190_000)
-    sub = random.Random(rng.randint(0, 10**9))
-    if pattern in ("chain", "cross_bank_hop"):
-        n = rng.randint(3, 5)
-        names = [f"acct_p{k}_m{i}" for i in range(n)]
-        if pattern == "cross_bank_hop":
-            order = ["BANK_A", "BANK_B", "WALLET_W", "BANK_C", "BANK_B"][:n]
-        else:
-            order = [rng.choice(insts) for _ in range(n)]
-        txs = generate_scam_chain(hops=tuple(zip(order, names)), seed_amount=amt, start=ts,
-                                  token_service=token_service, rng=sub)
-    elif pattern == "fanout":
-        m = rng.randint(3, 6)
-        leaves = tuple((rng.choice(insts), f"acct_p{k}_leaf{i}") for i in range(m))
-        txs = generate_scam_fanout(origin=(rng.choice(insts), f"acct_p{k}_origin"), leaves=leaves,
-                                   seed_amount=amt, start=ts, token_service=token_service, rng=sub)
-    else:
-        m = rng.randint(3, 5)
-        sinks = tuple((rng.choice(insts), f"acct_p{k}_src{i}") for i in range(m))
-        txs = generate_scam_fanin(sinks=sinks, collector=(rng.choice(insts), f"acct_p{k}_collector"),
-                                  per_leg=amt / m, start=ts, token_service=token_service, rng=sub)
-        txs = [t.model_copy(update={"destination_token": f"acct_p{k}_cashout"})
-               if t.destination_token == "acct_cashout_fi" else t for t in txs]
-    return txs, pattern
+def write_manifest(path: str | Path, manifest: dict) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
 
 
 def transactions_to_dicts(txs: Iterable[Transaction]) -> list[dict]:

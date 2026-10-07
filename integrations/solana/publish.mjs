@@ -1,0 +1,20 @@
+import { readFile, writeFile } from 'node:fs/promises';
+import { AccountRole, address, appendTransactionMessageInstruction, createKeyPairSignerFromBytes, createSolanaRpc, createSolanaRpcSubscriptions, createTransactionMessage, getSignatureFromTransaction, pipe, sendAndConfirmTransactionFactory, setTransactionMessageFeePayerSigner, setTransactionMessageLifetimeUsingBlockhash, signTransactionMessageWithSigners } from '@solana/kit';
+import { publicCommitment } from './protocol.mjs';
+
+const args = process.argv.slice(2);
+if (args.length !== 4 || args[0] !== '--confirm-devnet') throw new Error('Usage: npm run publish -- --confirm-devnet checkpoint.json private-keypair.json receipt.json');
+const payload = publicCommitment(JSON.parse(await readFile(args[1], 'utf8')));
+const signer = await createKeyPairSignerFromBytes(Uint8Array.from(JSON.parse(await readFile(args[2], 'utf8'))));
+const rpc = createSolanaRpc('https://api.devnet.solana.com');
+const rpcSubscriptions = createSolanaRpcSubscriptions('wss://api.devnet.solana.com');
+const abortSignal = AbortSignal.timeout(30000);
+if (await rpc.getGenesisHash().send({ abortSignal }) !== 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1') throw new Error('Unexpected network genesis');
+const blockhash = await rpc.getLatestBlockhash().send({ abortSignal });
+const message = pipe(createTransactionMessage({ version: 0 }), transaction => setTransactionMessageFeePayerSigner(signer, transaction), transaction => setTransactionMessageLifetimeUsingBlockhash(blockhash.value, transaction), transaction => appendTransactionMessageInstruction({ programAddress: address('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'), accounts: [{ address: signer.address, role: AccountRole.READONLY_SIGNER, signer }], data: new TextEncoder().encode(JSON.stringify(payload)) }, transaction));
+const signed = await signTransactionMessageWithSigners(message);
+await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signed, { commitment: 'confirmed', abortSignal });
+const signature = getSignatureFromTransaction(signed);
+const receipt = { network: 'solana-devnet', signature, commitment: payload.commitment, status: 'confirmed', mechanism: 'existing_spl_memo_program', explorer: `https://explorer.solana.com/tx/${signature}?cluster=devnet`, claim: 'Issuer commitment only; not evidence that a fraud allegation is true' };
+await writeFile(args[3], JSON.stringify(receipt, null, 2), { mode: 0o600 });
+console.log(JSON.stringify(receipt));

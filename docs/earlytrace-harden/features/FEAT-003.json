@@ -1,0 +1,25 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Make the synthetic research/evaluation path reproducible and honest: complete-story sim-2 generation with detector/truth isolation, explicit UNKNOWN metric domains, locked baselines/calibration, multi-seed support, and no-network local research smoke.",
+  "status": "pending",
+  "steps": [
+    "Add CorpusConfig and the earlytrace-sim-2 story generator controls in backend/app/simulator/generator.py, scam_patterns.py, scenarios.py, and truth_by_event sidecar types; use TrustedReferenceAdapter tokens for v2 events and keep story/role/label out of detector inputs/imports.",
+    "Add guarded story splits and metrics in backend/app/evaluation/splits.py, metrics.py, run_synthetic.py, and adversarial.py as needed: 60/20/20 complete-story partitions with the declared guard, eligible/scored/unknown domains, budget_slots/selected_alerts/unfilled_slots, zero-slot/null semantics, story bootstrap, multi-seed manifests/checksums, and all required alert-budget/PR-AUC/lead-time/friction/calibration/coverage/latency/robustness metrics. Preserve the old --days v1 evaluator separately.",
+    "Create backend/app/research baselines/calibration/manifests and research/kaggle local smoke, plus a generated Python 3.12 hashed lock/constraints artifact and tracked b0.v2/motif.v2 registry manifests; fail closed on feature/data/split/lock/artifact mismatch and never import research code at API startup.",
+    "Add evaluator, split, metric, truth-isolation, research, and no-network guard tests, and update data/model/evaluation documentation with synthetic provenance and the explicit no-RMSE promotion rule."
+  ],
+  "acceptance_criteria": [
+    "A fixed sim-2 configuration reproduces complete stories, labels, manifest, vectors, and checksums; every story belongs to exactly one partition and test events remain before test_end.",
+    "truth_by_event is joined only after scoring; detector modules do not import truth/role/story labels and prediction mutation cannot mutate labels.",
+    "UNKNOWN rows remain in eligible_n, never fill alert slots, and unsupported PR-AUC/Brier/ECE/calibration values are null with scored_n/unknown_n/status rather than silently filtered.",
+    "Every candidate manifest locks libraries, contracts, splits/checksums, unknown policy, hyperparameters, seed, calibration ownership, threshold rule, artifact and dependency-lock checksum; RMSE is never an optimization target.",
+    "Research smoke cannot read Kaggle/cloud credentials or make network/upload calls and does not become an API dependency."
+  ],
+  "verification": [
+    "From trail\\backend run C:\\Users\\shyam.BATCONSOLE\\Desktop\\RAKSHAM\\trail\\.venv\\Scripts\\python.exe -m pytest -q tests/test_preauth_simulator.py tests/test_evaluation.py tests/test_evaluation_metrics.py tests/test_evaluation_splits.py.",
+    "From trail\\backend run C:\\Users\\shyam.BATCONSOLE\\Desktop\\RAKSHAM\\trail\\.venv\\Scripts\\python.exe -m pytest -q tests/test_research.py tests/test_no_network.py and run the tiny corrected evaluation/research smoke with no external credentials."
+  ],
+  "blocked_reason": null,
+  "findings": "Resolves F-08, F-09, F-10, and F-11 and supplies the corrected evidence needed by the runtime/docs. The 91-event v1 run remains a compatibility artifact, never corrected-v2 evidence."
+}

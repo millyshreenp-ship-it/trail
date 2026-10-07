@@ -1,0 +1,7 @@
+{
+  "task_id": "task-earlytrace-harden",
+  "task_description": "Harden EarlyTrace from the audited v1 synthetic prototype into a safe local/staging v2 on Trail while preserving the immutable v1 seed-7 evaluator and resolving design-review findings F-01 through F-15.",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}
