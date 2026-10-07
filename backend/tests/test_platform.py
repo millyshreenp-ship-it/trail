@@ -46,3 +46,11 @@ def test_ops_endpoints_and_headers(client):
     r = client.get("/readyz"); assert r.json()["ready"] is True
     assert r.headers["X-Content-Type-Options"] == "nosniff" and "X-Request-Id" in r.headers
     assert any(a["key"] == "dev-l1-key" for a in client.get("/meta").json()["sandbox_accounts"])
+
+
+def test_public_demo_exposes_only_the_earlytrace_analyst(client, monkeypatch):
+    monkeypatch.setenv("TRAIL_PUBLIC_DEMO", "1")
+    body = client.get("/meta").json()
+    assert body["public_demo"] is True
+    assert [a["key"] for a in body["sandbox_accounts"]] == ["dev-preauth-a-key"]
+    assert client.get("/", follow_redirects=False).status_code in (302, 307)

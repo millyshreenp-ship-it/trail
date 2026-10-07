@@ -22,9 +22,14 @@ def setup_state():
         institution_id="BANK_A", event_source=EventSource.SYNTHETIC_GENERATOR, rail="UPI", source_token="tok_" + "1" * 32,
         payee_token="tok_" + "2" * 32, amount_bucket="1k_10k", payee_age_bucket="new", session_context="URGENT_SOCIAL_ENGINEERING",
         consent_scope="LOCAL_BEHAVIOUR", trace_id="trace_api_v2", idempotency_key="idem_api_v210")
+    st.context.register_event(event, attestation_verified=True, local_authorized=True)
     signed = PreAuthAttestor(st.context.registry, clock=lambda: now).sign_event(event, private, key_version="v1", issued_at=now, expires_at=now.replace(hour=10, minute=5))
-    body = {"schema_version": "earlytrace.preauth.v2", "event": {k: v for k, v in event.model_dump(mode="json").items() if k != "as_of"},
-            "attestation": signed.model_dump(mode="json"), "trace_id": event.trace_id, "idempotency_key": event.idempotency_key}
+    body = {"schema_version": "earlytrace.preauth.v2", "event": {
+                "schema_version": "earlytrace.preauth.v2", "event_id": event.event_id,
+                "institution_id": event.institution_id, "event_digest": signed.event_digest,
+                "trace_id": event.trace_id, "idempotency_key": event.idempotency_key,
+            }, "attestation": signed.model_dump(mode="json"), "trace_id": event.trace_id,
+            "idempotency_key": event.idempotency_key}
     return st, body
 
 
@@ -43,7 +48,7 @@ def test_v2_tenant_scoped_decision_and_idempotency():
 def test_v1_http_and_caller_context_are_rejected():
     st, body = setup_state()
     client = TestClient(app)
-    old = {"schema_version": "earlytrace.preauth.v1", "event_id": "evt_old001", "occurred_at": body["event"]["occurred_at"], "institution_id": "BANK_A", "trace_id": "trace_old1", "idempotency_key": "idem_old001"}
+    old = {"schema_version": "earlytrace.preauth.v1", "event_id": "evt_old001", "occurred_at": "2026-06-01T10:00:00+00:00", "institution_id": "BANK_A", "trace_id": "trace_old1", "idempotency_key": "idem_old001"}
     assert client.post("/preauth/decisions", json=old, headers={"X-API-Key": "bank-a-v2"}).status_code == 410
-    body["event"]["as_of"] = body["event"].get("occurred_at")
+    body["as_of"] = body["attestation"]["issued_at"]
     assert client.post("/preauth/decisions", json=body, headers={"X-API-Key": "bank-a-v2"}).status_code == 422

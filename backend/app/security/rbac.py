@@ -33,15 +33,21 @@ class Perm(str, Enum):
     AUDIT_READ = "audit:read"
     COMPLAINT_INTAKE = "complaint:intake"
     INSTITUTION_MANAGE = "institution:manage"
+    PREAUTH_SCORE = "preauth:score"
+    PREAUTH_READ = "preauth:read"
+    PREAUTH_REVIEW = "preauth:review"
 
 
 ROLE_PERMS: dict[Role, set[Perm]] = {
     Role.L1_ANALYST: {Perm.CASE_READ, Perm.CASE_CREATE, Perm.CASE_PROPOSE,
-                      Perm.CASE_ESCALATE, Perm.COMPLAINT_INTAKE},
+                      Perm.CASE_ESCALATE, Perm.COMPLAINT_INTAKE,
+                      Perm.PREAUTH_SCORE, Perm.PREAUTH_READ, Perm.PREAUTH_REVIEW},
     Role.L2_APPROVER: {Perm.CASE_READ, Perm.CASE_PROPOSE, Perm.CASE_APPROVE,
-                       Perm.CASE_REJECT, Perm.CASE_ESCALATE},
-    Role.SENIOR_APPROVER: {Perm.CASE_READ, Perm.CASE_APPROVE, Perm.CASE_REJECT, Perm.CASE_ESCALATE},
-    Role.AUDITOR: {Perm.CASE_READ, Perm.AUDIT_READ},  # read-only
+                       Perm.CASE_REJECT, Perm.CASE_ESCALATE,
+                       Perm.PREAUTH_SCORE, Perm.PREAUTH_READ, Perm.PREAUTH_REVIEW},
+    Role.SENIOR_APPROVER: {Perm.CASE_READ, Perm.CASE_APPROVE, Perm.CASE_REJECT, Perm.CASE_ESCALATE,
+                           Perm.PREAUTH_READ, Perm.PREAUTH_REVIEW},
+    Role.AUDITOR: {Perm.CASE_READ, Perm.AUDIT_READ, Perm.PREAUTH_READ},  # read-only
     Role.INSTITUTION_ADMIN: {Perm.OUTCOME_WRITE, Perm.INSTITUTION_MANAGE, Perm.COMPLAINT_INTAKE},
 }
 
@@ -65,6 +71,7 @@ def default_dev_users() -> dict[str, Principal]:
         "dev-senior-key": Principal("senior_iyer", Role.SENIOR_APPROVER),
         "dev-auditor-key": Principal("auditor_kapoor", Role.AUDITOR),
         "dev-admin-a-key": Principal("admin_bank_a", Role.INSTITUTION_ADMIN, "BANK_A"),
+        "dev-preauth-a-key": Principal("analyst_earlytrace", Role.L1_ANALYST, "BANK_A"),
     }
 
 
@@ -92,3 +99,6 @@ class UserDirectory:
             if hmac.compare_digest(stored, digest):
                 match = principal
         return match
+
+    def register(self, api_key: str, principal: Principal) -> None:
+        self._users[hashlib.sha256(api_key.encode()).hexdigest()] = principal

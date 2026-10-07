@@ -7,6 +7,8 @@ Also exposes transaction-based detection for simulator evaluation.
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 from typing import Sequence
 
 import networkx as nx
@@ -45,8 +47,17 @@ def _level(score: float) -> RiskLevel:
     return RiskLevel.LOW
 
 
-def _pseudonym(token: str) -> str:
-    """Case-scoped-style pseudonym without requiring case_id (hub has no case in hook)."""
+def _pseudonym(token: str, case_id: str | None = None, token_service=None) -> str:
+    """Case-scoped HMAC pseudonym when a case id exists. Never returns the raw token."""
+    if case_id and token_service is not None:
+        return token_service.case_pseudonym(case_id, token)
+    if case_id:
+        digest = hmac.new(
+            b"earlytrace-case-scope",
+            f"{case_id}\x1f{token}".encode(),
+            hashlib.sha256,
+        ).digest()[:12]
+        return "acc_" + digest.hex()
     body = token[4:] if token.startswith("tok_") else token
     return "acc_" + body[:12]
 
@@ -115,6 +126,9 @@ def _seed_issued_at(G: nx.DiGraph, seed: str) -> int | None:
 def build_ring_record(
     beacons: list[Beacon] | Sequence[Beacon],
     seed_token: str,
+    *,
+    case_id: str | None = None,
+    token_service=None,
 ) -> RingRecord | None:
     """Hub integration hook. Returns None if the trail is too short to form a ring."""
     beacons = list(beacons)
@@ -203,7 +217,7 @@ def build_ring_record(
             RingHop(
                 hop_index=i,
                 institution=inst,
-                receiver_pseudonym=_pseudonym(token),
+                receiver_pseudonym=_pseudonym(token, case_id, token_service),
                 token=token,
                 tainted_amount_lo=lo,
                 tainted_amount_hi=hi,
@@ -249,6 +263,8 @@ def detect_ring_from_transactions(
     seed_token: str,
     *,
     scorer: RiskScorer | None = None,
+    case_id: str | None = None,
+    token_service=None,
 ) -> RingRecord | None:
     """Offline / evaluation path: build graph from synthetic txs and score hops."""
     G = build_transaction_graph(transactions)
@@ -311,7 +327,7 @@ def detect_ring_from_transactions(
             RingHop(
                 hop_index=i,
                 institution=inst,
-                receiver_pseudonym=_pseudonym(token),
+                receiver_pseudonym=_pseudonym(token, case_id, token_service),
                 token=token,
                 tainted_amount_lo=lo,
                 tainted_amount_hi=hi or lo,

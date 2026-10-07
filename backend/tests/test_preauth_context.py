@@ -44,3 +44,21 @@ def test_future_and_stale_are_server_clock_conditions():
     result = provider.get(stale, None, NOW, "LIVE_SYNTHETIC")
     assert result.local_sufficient is False
     assert result.failure_code == ContextFailure.INSUFFICIENT_EVIDENCE
+
+
+def test_history_appends_and_survives_provider_restart(tmp_path):
+    path = str(tmp_path / "context.sqlite3")
+    prior = event("evt_prior2", occurred_at=NOW - timedelta(minutes=5), as_of=NOW - timedelta(minutes=5))
+    current = event("evt_current2", occurred_at=NOW, as_of=NOW)
+    first = VerifiedContextProvider(clock=lambda: NOW, storage_path=path)
+    first.register_event(prior)
+    first.register_event(current)
+    result = first.get(current, None, NOW, "LIVE_SYNTHETIC")
+    assert [item.event_id for item in result.events] == ["evt_prior2"]
+    first.close()
+
+    second = VerifiedContextProvider(clock=lambda: NOW, storage_path=path)
+    restored = second.get(current, None, NOW, "LIVE_SYNTHETIC")
+    assert [item.event_id for item in restored.events] == ["evt_prior2"]
+    assert restored.local_sufficient is True
+    second.close()

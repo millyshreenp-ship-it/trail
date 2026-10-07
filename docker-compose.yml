@@ -1,13 +1,52 @@
 services:
-  hub:
+  # Local sandbox only. It uses synthetic fixtures and a named local volume.
+  trail-sandbox:
     build: .
-    ports: ["8000:8000"]
-    env_file: .env
+    ports:
+      - "127.0.0.1:8000:8000"
     environment:
+      TRAIL_ENV: sandbox
+      TRAIL_PROFILE: sandbox
+      TRAIL_DATA_STATUS: synthetic
+      TRAIL_LIVE_INTEGRATIONS: "false"
+      TRAIL_BIND_HOST: 0.0.0.0
       TRAIL_AUDIT_PATH: /data/audit.jsonl
-    volumes: ["trail-data:/data"]
+      TRAIL_PREAUTH_PATH: /data/preauth.sqlite
+      TRAIL_CORS_ORIGINS: http://localhost:8000
+    volumes:
+      - trail-sandbox-data:/data
     read_only: true
-    tmpfs: ["/tmp"]
+    tmpfs:
+      - /tmp
     restart: unless-stopped
+
+  # Optional local staging rehearsal. Empty/weak values intentionally fail
+  # startup; provide them through the shell, never by committing a secret.
+  trail-staging:
+    profiles: ["staging"]
+    build: .
+    ports:
+      - "127.0.0.1:8001:8000"
+    environment:
+      TRAIL_ENV: staging
+      TRAIL_PROFILE: staging
+      TRAIL_DATA_STATUS: synthetic
+      TRAIL_LIVE_INTEGRATIONS: "false"
+      TRAIL_BIND_HOST: 0.0.0.0
+      TRAIL_DISABLE_DEV_KEYS: "1"
+      TRAIL_MASTER_SECRET: "${TRAIL_MASTER_SECRET-}"
+      TRAIL_USERS_JSON: "${TRAIL_USERS_JSON-}"
+      TRAIL_CORS_ORIGINS: "${TRAIL_CORS_ORIGINS-}"
+      TRAIL_DEPENDENCY_LOCK: /srv/requirements-py312.lock
+      TRAIL_AUDIT_PATH: /data/audit.jsonl
+      TRAIL_PREAUTH_PATH: /data/preauth.sqlite
+    volumes:
+      - trail-staging-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: "no"
+
 volumes:
-  trail-data:
+  trail-sandbox-data:
+  trail-staging-data:

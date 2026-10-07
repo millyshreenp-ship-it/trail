@@ -10,7 +10,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 from app.models.preauth import ConsentRecord, EventAttestation
-from app.security.canonical_json import canonical_json_bytes, sha256_hex
+from app.security.canonical_json import canonical_json, canonical_json_bytes, sha256_hex
 
 CLOCK_SKEW = timedelta(seconds=60)
 
@@ -180,6 +180,8 @@ def verify_consent(record: ConsentRecord, registry: KeyRegistry, *, now: datetim
     current = _utc(now)
     if record.event_digest != subject_event_digest or record.receiving_institution != receiving_institution:
         return AttestationResult(False, "CONSENT_BINDING_MISMATCH")
+    if record.signed_payload is not None and record.signed_payload != canonical_json(consent_payload(record)):
+        return AttestationResult(False, "SIGNED_PAYLOAD_MISMATCH")
     key = registry.resolve(record.granting_institution, record.verifier_key_version, current)
     if key is None:
         return AttestationResult(False, "KEY_INACTIVE_OR_REVOKED")

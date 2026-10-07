@@ -1,0 +1,32 @@
+{
+  "manifest_version": "earlytrace-research-manifest-v2",
+  "candidate": "b1-v2",
+  "research_only": true,
+  "engine_version": "earlytrace-b0b1-heuristic-v2",
+  "feature_contract": {
+    "name": "motif.v2",
+    "dimension": 28,
+    "ordered_names": ["payee_age_new", "urgent_context", "inbound_count_1h", "outbound_count_1h", "inbound_count_24h", "outbound_count_24h", "fwd_delay_median_min", "rapid_forward_ratio", "fan_out", "fan_in", "fan_out_concentration", "fan_in_concentration", "distinct_counterparties", "dormant_burst", "institution_changes", "rail_changes", "delayed_hop", "delayed_hop_gap_min", "structuring", "merchant_fanin", "recurring_pair", "household_like", "refund_like", "new_payee_no_onward", "evidence_coverage", "participation_ratio", "freshness_seconds", "expired_fraction"],
+    "hash": "316fdf1424d0e90b1c1862bf31e92e920ed1c9fb4f1acf191354d5b1e3fcbbba",
+    "value_type": "finite_float"
+  },
+  "generator_version": "earlytrace-sim-2",
+  "event_checksum": "run-specific",
+  "label_checksum": "run-specific",
+  "vector_checksum": "run-specific",
+  "split_checksum": "run-specific",
+  "unknown_policy": "UNKNOWN rows are abstentions and are never ranked or backfilled",
+  "class_weights": null,
+  "hyperparameters": {"policy": "locked motif.v2 feature-linked policy", "weights": [0.34, 0.16, 0.14, 0.1, 0.06, 0.06, 0.06, 0.04, 0.04]},
+  "seed": 0,
+  "calibration": {"method": "none", "owner": "not_calibrated", "status": "not_fitted"},
+  "threshold_rule": "policy_action_or_floor_budget_on_calibration_only",
+  "threshold": null,
+  "artifact_checksum": null,
+  "dependency_lock_hash": "8a73f28a974a5dd516cdf90c82d0463de85081e0aa00d5dd87f113832b5248d2",
+  "dependency_lock_status": "verified",
+  "library_versions": {"python": "run-specific"},
+  "score_semantics": "risk_index; not a probability unless a matching calibration artifact is verified",
+  "rmse_policy": "not_optimized; if emitted, lower is better and it is secondary",
+  "registry_status": "template_requires_run_checksums"
+}

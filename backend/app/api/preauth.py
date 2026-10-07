@@ -6,6 +6,7 @@ compatibility evaluator.  All writes are advisory, durable, and record-only.
 from __future__ import annotations
 
 import hashlib
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
@@ -17,13 +18,13 @@ from app.context.preauth import ContextFailure
 from app.detection.preauth import score_pre_auth_v2
 from app.models.preauth import (
     CalibrationStatus, ConsentOutcome, DecisionAction, DecisionReasonV2,
-    ExecutionMode, Participation, RiskBand, RiskDecisionV2, ScoreKind,
+    EventSource, ExecutionMode, Participation, RiskBand, RiskDecisionV2, ScoreKind,
     UncertaintySummary, UnknownReason, UnsupportedSchemaEnvelope,
 )
 from app.models.preauth_v2 import PreAuthWireSubmission
 from app.security.canonical_json import canonical_json_bytes
 from app.security.input_boundary import InputBoundaryError, parse_bounded_json, validate_v2_payload
-from app.security.preauth_attestation import PreAuthAttestor
+from app.security.preauth_attestation import PreAuthAttestor, event_digest
 from app.security.rbac import Perm, Principal
 from app.state import HubState
 from app.storage.preauth import DecisionInProgress, ReservationLost, StoreConflict
@@ -70,7 +71,7 @@ def _unsupported_unknown(envelope: UnsupportedSchemaEnvelope, now: datetime) -> 
     ).model_dump(mode="json")
 
 
-def _parse(request: Request, raw: bytes, now: datetime):
+def _parse(raw: bytes):
     try:
         parsed = parse_bounded_json(raw)
     except InputBoundaryError as exc:
@@ -80,7 +81,7 @@ def _parse(request: Request, raw: bytes, now: datetime):
         raise HTTPException(410, "v1 HTTP scoring is retired")
     if version != "earlytrace.preauth.v2":
         # Only the safe top-level envelope may produce a stored UNKNOWN.  The
-        # old nested v1 request is rejected and is never passed to Pydantic/scoring.
+        # old nested v1 request is rejected and is never passed to scoring.
         try:
             envelope = UnsupportedSchemaEnvelope.model_validate(parsed)
         except ValidationError:
@@ -93,23 +94,32 @@ def _parse(request: Request, raw: bytes, now: datetime):
         raise HTTPException(422, "invalid preauth submission") from None
     if "as_of" in parsed or "prior_events" in parsed or "hub_available" in parsed or "participating_institutions" in parsed:
         raise HTTPException(422, "caller context is not accepted")
-    if submission.event.event_id != submission.attestation.event_id or submission.event.institution_id != submission.attestation.institution_id:
-        raise HTTPException(422, "attestation binding mismatch")
     return submission, None
 
 
-def _unknown_from_context(event, ctx, now, reason: UnknownReason | None = None) -> RiskDecisionV2:
+def _unknown_from_context(event, ctx, now, reason: UnknownReason | None = None, *, execution_mode: ExecutionMode) -> RiskDecisionV2:
     from app.detection.preauth import _v2_unknown
-    return _v2_unknown(event, now, ctx, reason or {"STALE_EVENT": UnknownReason.STALE_EVENT, "FUTURE_EVENT_TIME": UnknownReason.FUTURE_EVENT_TIME}.get(getattr(ctx.failure_code, "value", ctx.failure_code), UnknownReason.INSUFFICIENT_EVIDENCE))
+    fallback = {
+        "STALE_EVENT": UnknownReason.STALE_EVENT,
+        "FUTURE_EVENT_TIME": UnknownReason.FUTURE_EVENT_TIME,
+    }.get(getattr(ctx.failure_code, "value", ctx.failure_code), UnknownReason.INSUFFICIENT_EVIDENCE)
+    return _v2_unknown(event, now, ctx, reason or fallback, execution_mode=execution_mode)
 
 
-def _declaration_reason(submission: PreAuthWireSubmission) -> bool:
-    e = submission.event
+def _declaration_reason(submission: PreAuthWireSubmission, event) -> bool:
     return any(value is not None and value != actual for value, actual in (
-        (submission.declared_payee_age_bucket, e.payee_age_bucket),
-        (submission.declared_session_context, e.session_context),
-        (submission.declared_consent_scope, e.consent_scope),
+        (submission.declared_payee_age_bucket, event.payee_age_bucket),
+        (submission.declared_session_context, event.session_context),
+        (submission.declared_consent_scope, event.consent_scope),
     ))
+
+
+def _execution_mode(event_source: EventSource) -> ExecutionMode:
+    return {
+        EventSource.SYNTHETIC_GENERATOR: ExecutionMode.LIVE_SYNTHETIC,
+        EventSource.SANDBOX_FIXTURE: ExecutionMode.SANDBOX_REPLAY,
+        EventSource.STAGING_REGISTERED_FIXTURE: ExecutionMode.STAGING_REPLAY,
+    }[event_source]
 
 
 @router.post("/decisions", status_code=200)
@@ -119,17 +129,18 @@ async def decide(request: Request, user: Principal = Depends(require(Perm.PREAUT
     cl = request.headers.get("content-length")
     if cl is not None:
         try:
-            if int(cl) < 0:
+            declared = int(cl)
+            if declared < 0:
                 raise ValueError
         except ValueError:
             raise HTTPException(400, "invalid content length") from None
-        if int(cl) > _MAX_BODY:
+        if declared > _MAX_BODY:
             raise HTTPException(413, "request body too large")
     raw = await request.body()
     if len(raw) > _MAX_BODY:
         raise HTTPException(413, "request body too large")
     now = st.now().astimezone(timezone.utc)
-    submission, unsupported = _parse(request, raw, now)
+    submission, unsupported = _parse(raw)
     if unsupported is not None:
         if user.institution != unsupported.institution_id:
             raise HTTPException(403, "TENANT_REQUIRED")
@@ -148,9 +159,32 @@ async def decide(request: Request, user: Principal = Depends(require(Perm.PREAUT
 
     if submission.event.institution_id != tenant:
         raise HTTPException(403, "TENANT_REQUIRED")
+    current = st.context.lookup(submission.event.event_id, tenant)
+    if current is None:
+        raise HTTPException(422, "event is not registered")
+    event = current.event
+    if submission.event.event_digest != event_digest(event):
+        raise HTTPException(422, "event digest mismatch")
+    mode = _execution_mode(event.event_source)
+    fixture = None
+    if event.event_source in (EventSource.SANDBOX_FIXTURE, EventSource.STAGING_REGISTERED_FIXTURE):
+        if not submission.fixture_id:
+            raise HTTPException(422, "fixture id is required for replay source")
+        fixture = st.context.fixture_event(submission.fixture_id, tenant)
+        if fixture is None or fixture.event.event_id != event.event_id or event_digest(fixture.event) != event_digest(event):
+            raise HTTPException(422, "fixture binding mismatch")
+        current = fixture
+    elif submission.fixture_id:
+        raise HTTPException(422, "fixture id does not match live source")
+
+    attestation = PreAuthAttestor(st.context.registry, clock=st.now)
+    verified = attestation.verify_event(event, submission.attestation, now=now)
+    if not verified.ok:
+        raise HTTPException(422, "invalid event attestation")
+
     body_hash = _body_hash(submission.model_dump(mode="json"))
     try:
-        reserved = st.preauth_store.reserve(tenant, submission.event.event_id, submission.idempotency_key, body_hash, now)
+        reserved = st.preauth_store.reserve(tenant, event.event_id, submission.idempotency_key, body_hash, now)
     except StoreConflict:
         raise HTTPException(409, "request conflict") from None
     except DecisionInProgress:
@@ -158,49 +192,30 @@ async def decide(request: Request, user: Principal = Depends(require(Perm.PREAUT
     if reserved.decision is not None:
         return reserved.decision
 
-    from app.models.preauth import PreAuthEventV2
-    event = PreAuthEventV2(
-        schema_version=submission.event.schema_version, event_id=submission.event.event_id,
-        occurred_at=submission.event.occurred_at, as_of=now, institution_id=submission.event.institution_id,
-        event_source=submission.event.event_source, rail=submission.event.rail,
-        source_token=submission.event.source_token, payee_token=submission.event.payee_token,
-        amount_bucket=submission.event.amount_bucket, payee_age_bucket=submission.event.payee_age_bucket,
-        session_context=submission.event.session_context, consent_scope=submission.event.consent_scope,
-        trace_id=submission.event.trace_id, idempotency_key=submission.event.idempotency_key,
-    )
-    attestation = PreAuthAttestor(st.context.registry, clock=st.now)
-    verified = attestation.verify_event(event, submission.attestation, now=now)
-    if not verified.ok:
-        st.preauth_store.fail(reserved.reservation, "ATTESTATION_INVALID")
-        raise HTTPException(422, "invalid event attestation")
-    fixture = st.context.fixture_event(submission.fixture_id, tenant) if submission.fixture_id else None
-    if submission.fixture_id and fixture is None:
-        st.preauth_store.fail(reserved.reservation, "FIXTURE_NOT_FOUND")
-        raise HTTPException(422, "fixture not found")
-    current = fixture or event
-    if fixture is None:
-        st.context.register_event(event, attestation_verified=True, local_authorized=True)
     if event.occurred_at > now + timedelta(seconds=60):
         st.preauth_store.fail(reserved.reservation, "FUTURE_EVENT_TIME")
         raise HTTPException(422, "FUTURE_EVENT_TIME")
     if event.occurred_at > now:
-        ctx = st.context.get(current, user, now, ExecutionMode.LIVE_SYNTHETIC)
+        ctx = st.context.get(current, user, now, mode)
         from dataclasses import replace
         ctx = replace(ctx, failure_code=ContextFailure.INSUFFICIENT_EVIDENCE)
-        decision = _unknown_from_context(event, ctx, now, UnknownReason.FUTURE_EVENT_TIME)
+        decision = _unknown_from_context(event, ctx, now, UnknownReason.FUTURE_EVENT_TIME, execution_mode=mode)
     else:
-        ctx = st.context.get(current, user, now, ExecutionMode.LIVE_SYNTHETIC)
+        ctx = st.context.get(current, user, now, mode)
         if now - event.occurred_at > timedelta(hours=6):
             from dataclasses import replace
             ctx = replace(ctx, failure_code=ContextFailure.INSUFFICIENT_EVIDENCE)
-            decision = _unknown_from_context(event, ctx, now, UnknownReason.STALE_EVENT)
+            decision = _unknown_from_context(event, ctx, now, UnknownReason.STALE_EVENT, execution_mode=mode)
         else:
-            decision = score_pre_auth_v2(event, ctx, server_now=now)
-    if _declaration_reason(submission) and decision.action != DecisionAction.UNKNOWN:
+            decision = score_pre_auth_v2(event, ctx, server_now=now, execution_mode=mode)
+    if _declaration_reason(submission, event) and decision.action != DecisionAction.UNKNOWN:
         reasons = list(decision.reasons) + [DecisionReasonV2(code="R_DECLARATION_MISMATCH", feature="declaration", value=None, template_id="r_declaration_mismatch")]
         decision = decision.model_copy(update={"reasons": reasons})
     try:
-        return st.preauth_store.commit_decision(reserved.reservation, decision.model_dump(mode="json"), {"action": decision.action.value, "consent_outcome": decision.consent_outcome.value})
+        return st.preauth_store.commit_decision(
+            reserved.reservation, decision.model_dump(mode="json"),
+            {"action": decision.action.value, "consent_outcome": decision.consent_outcome.value},
+        )
     except ReservationLost:
         raise HTTPException(503, "decision reservation lost") from None
 
@@ -238,7 +253,7 @@ def _action(event_id: str, request: Request, kind: str, user: Principal, st: Hub
     if raw.get("schema_version") != "earlytrace.action.v2" or raw.get("note_code") not in {"VERIFICATION_REQUESTED", "STEP_UP_RECORDED", "REVIEW_RECORDED", "HUMAN_ESCALATION", "DISPLAY_RECORDED"}:
         raise HTTPException(422, "invalid action schema")
     action_id = raw.get("action_id")
-    if not isinstance(action_id, str) or not __import__("re").fullmatch(r"act_[a-z0-9_-]{8,64}", action_id):
+    if not isinstance(action_id, str) or not re.fullmatch(r"act_[a-z0-9_-]{8,64}", action_id):
         raise HTTPException(422, "invalid action id")
     eligible = {"DISPLAY": {"UNKNOWN", "ALLOW", "WARN_AND_VERIFY", "STEP_UP", "ANALYST_REVIEW"}, "REVIEW": {"UNKNOWN", "WARN_AND_VERIFY", "STEP_UP", "ANALYST_REVIEW"}, "STEP_UP": {"WARN_AND_VERIFY", "STEP_UP"}, "ESCALATE": {"UNKNOWN", "WARN_AND_VERIFY", "STEP_UP", "ANALYST_REVIEW"}}[kind]
     if decision["action"] not in eligible:
@@ -247,10 +262,8 @@ def _action(event_id: str, request: Request, kind: str, user: Principal, st: Hub
         raise HTTPException(409, "ACTION_EXPIRED")
     body_hash = _body_hash(raw)
     receipt = {"schema_version": "earlytrace.action.receipt.v2", "event_id": event_id, "action": kind, "as_of": st.now().isoformat(), "expires_at": decision["expires_at"], "duplicate": False, "effect": "recorded_only", "audit_id": "PAUD-pending"}
-    # The store audit ID is authoritative; replace the temporary field after its
-    # transaction allocates a receipt audit row.
     try:
-        result = st.preauth_store.put_action(user.institution, event_id, action_id, body_hash, receipt)
+        result = st.preauth_store.put_action(user.institution, event_id, kind, action_id, body_hash, receipt)
     except StoreConflict:
         raise HTTPException(409, "action conflict") from None
     return result

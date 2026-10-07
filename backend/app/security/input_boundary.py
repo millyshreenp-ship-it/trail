@@ -106,9 +106,8 @@ def validate_v2_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     if "event" in data:
         if not isinstance(data["event"], dict):
             raise InputBoundaryError("event object required")
-        allowed_event = {"schema_version", "event_id", "occurred_at", "institution_id",
-                         "event_source", "rail", "source_token", "payee_token",
-                         "amount_bucket", "payee_age_bucket", "session_context", "consent_scope", "trace_id", "idempotency_key"}
+        allowed_event = {"schema_version", "event_id", "institution_id", "event_digest",
+                         "trace_id", "idempotency_key"}
         if set(data["event"]) - allowed_event:
             raise InputBoundaryError("unknown field")
     if "attestation" in data:
@@ -123,11 +122,8 @@ def validate_v2_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
         raise InputBoundaryError("unsupported schema")
     if "event" in data and isinstance(data["event"], dict):
         event = data["event"]
-        for key in ("source_token", "payee_token"):
-            if key in event and (not isinstance(event[key], str) or not TOKEN_RE.fullmatch(event[key])):
-                raise InputBoundaryError("invalid live token")
-        if event.get("event_source") not in (None, "SYNTHETIC_GENERATOR", "SANDBOX_FIXTURE", "STAGING_REGISTERED_FIXTURE"):
-            raise InputBoundaryError("event source is not enabled")
+        if "event_digest" in event and (not isinstance(event["event_digest"], str) or not re.fullmatch(r"[0-9a-f]{64}", event["event_digest"])):
+            raise InputBoundaryError("invalid event digest")
     def reject_raw(value: Any) -> None:
         if isinstance(value, str) and RAW_REFERENCE_RE.fullmatch(value):
             raise InputBoundaryError("raw reference is not accepted")

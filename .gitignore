@@ -6,9 +6,17 @@ __pycache__/
 .pytest_cache/
 .venv/
 node_modules/
+frontend/dist/
+integrations/solana/target/
+integrations/hardware/.pio/
+deploy/**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
 audit.jsonl
 data/evaluation/
 data/external/
+research/kaggle/runs/
 
 # Model artifacts and checkpoints
 checkpoints/
@@ -35,3 +43,9 @@ logs/
 *.db
 
 .kaggle/
+
+# Terraform local state and variables
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars

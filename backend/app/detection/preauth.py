@@ -382,10 +382,10 @@ def _v2_reason(code: str, feature: str, value=None) -> DecisionReasonV2:
     return DecisionReasonV2(code=code, feature=feature, value=value, template_id=code.lower())
 
 
-def _v2_unknown(event, now: datetime, context: ContextResult, reason: UnknownReason) -> RiskDecisionV2:
+def _v2_unknown(event, now: datetime, context: ContextResult, reason: UnknownReason, *, execution_mode="LIVE_SYNTHETIC") -> RiskDecisionV2:
     return RiskDecisionV2(
         event_id=event.event_id, trace_id=event.trace_id, as_of=now,
-        subject_event_time=event.occurred_at, execution_mode="LIVE_SYNTHETIC",
+        subject_event_time=event.occurred_at, execution_mode=execution_mode,
         action=DecisionAction.UNKNOWN, risk_band=RiskBand.UNKNOWN, score=None,
         score_kind=ScoreKind.NONE, calibrated=False, reasons=[_v2_reason("R_INSUFFICIENT", "coverage")], evidence=[],
         evidence_coverage=context.evidence_coverage, participation=context.participation.participation,
@@ -402,7 +402,7 @@ def score_pre_auth_v2(event, context: ContextResult, *, server_now: datetime, ex
     now = _aware(server_now)
     failure = context.failure_code
     if failure != ContextFailure.NONE or not context.local_sufficient:
-        return _v2_unknown(event, now, context, _v2_unknown_reason(failure))
+        return _v2_unknown(event, now, context, _v2_unknown_reason(failure), execution_mode=execution_mode)
     b0v = b0_vector_for_event(event, context, event.occurred_at)
     b1v = feature_vector_for_event(event, context, event.occurred_at)
     b0 = b0_risk_index(b0v)

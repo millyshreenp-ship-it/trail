@@ -445,10 +445,32 @@ class ConsentRecord(_Strict):
             raise ValueError("timestamps must be timezone-aware")
         return value.astimezone(timezone.utc) if value is not None else None
 
+    @model_validator(mode="after")
+    def _consent_window(self) -> "ConsentRecord":
+        if self.expires_at <= self.issued_at:
+            raise ValueError("consent expiry must be after issue time")
+        if self.revoked_at is not None and self.revoked_at < self.issued_at:
+            raise ValueError("consent revocation cannot precede issue time")
+        return self
+
+
+class PreAuthSubmissionEvent(_Strict):
+    """Identifier-only wire envelope for a server-owned event.
+
+    Semantic event fields are deliberately absent.  The API resolves this
+    envelope to a registered synthetic event before attestation or scoring.
+    """
+    schema_version: Literal["earlytrace.preauth.v2"] = V2_SCHEMA_VERSION
+    event_id: str = Field(pattern=r"^evt_[a-z0-9_-]{6,64}$")
+    institution_id: str = Field(pattern=r"^[A-Z][A-Z0-9_]{1,32}$")
+    event_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    trace_id: str = Field(pattern=r"^trace_[a-z0-9_-]{4,64}$")
+    idempotency_key: str = Field(pattern=r"^idem_[A-Za-z0-9_-]{8,64}$")
+
 
 class PreAuthSubmission(_Strict):
     schema_version: Literal["earlytrace.preauth.v2"] = V2_SCHEMA_VERSION
-    event: PreAuthEventV2
+    event: PreAuthSubmissionEvent
     attestation: EventAttestation
     trace_id: str = Field(pattern=r"^trace_[a-z0-9_-]{4,64}$")
     idempotency_key: str = Field(pattern=r"^idem_[A-Za-z0-9_-]{8,64}$")
@@ -461,7 +483,11 @@ class PreAuthSubmission(_Strict):
     def _binding(self) -> "PreAuthSubmission":
         if self.trace_id != self.event.trace_id or self.idempotency_key != self.event.idempotency_key:
             raise ValueError("submission metadata does not match event")
-        if self.attestation.event_id != self.event.event_id or self.attestation.institution_id != self.event.institution_id:
+        if (
+            self.attestation.event_id != self.event.event_id
+            or self.attestation.institution_id != self.event.institution_id
+            or self.attestation.event_digest != self.event.event_digest
+        ):
             raise ValueError("attestation is not bound to event")
         return self
 
@@ -471,11 +497,14 @@ class UncertaintySummary(_Strict):
     reasons: list[UnknownReason] = Field(default_factory=list, max_length=8)
 
 
+V2_REASON_TEMPLATE_IDS = tuple(code.lower() for code in V2_REASON_CODES)
+
+
 class DecisionReasonV2(_Strict):
     code: Literal[tuple(V2_REASON_CODES)]
     feature: Literal[tuple(V2_REASON_FEATURES)]
     value: ReasonBucket | float | None = None
-    template_id: str = Field(pattern=r"^[a-z0-9_]{3,64}$")
+    template_id: Literal[tuple(V2_REASON_TEMPLATE_IDS)]
 
     @field_validator("value")
     @classmethod
@@ -569,8 +598,12 @@ class RiskDecisionV2(_Strict):
                 raise ValueError("UNKNOWN decisions require high uncertainty and no feature contract")
         elif self.score_kind == ScoreKind.NONE or self.score is None:
             raise ValueError("scored decisions require a score kind and score")
-        if self.score_kind == ScoreKind.CALIBRATED_PROBABILITY and not self.calibrated:
-            raise ValueError("calibrated probability requires calibrated=true")
+        if self.score_kind == ScoreKind.CALIBRATED_PROBABILITY:
+            if not self.calibrated or self.calibration_id is None or self.calibration_status != CalibrationStatus.VERIFIED:
+                raise ValueError("calibrated probabilities require verified calibration metadata")
+        elif self.score_kind == ScoreKind.RISK_INDEX:
+            if self.calibrated or self.calibration_id is not None:
+                raise ValueError("risk indices cannot carry calibrated metadata")
         if self.calibrated and self.calibration_id is None:
             raise ValueError("calibrated decisions require a calibration id")
         return self
@@ -593,6 +626,7 @@ class FeedbackEventV2(_Strict):
 
 
 class ActionKind(str, Enum):
+    DISPLAY = "DISPLAY"
     VERIFY = "VERIFY"
     STEP_UP = "STEP_UP"
     REVIEW = "REVIEW"
@@ -604,7 +638,7 @@ class ActionRequestV2(_Strict):
     action_id: str = Field(pattern=r"^act_[a-z0-9_-]{8,64}$")
     event_id: str = Field(pattern=r"^evt_[a-z0-9_-]{6,64}$")
     action: ActionKind
-    note_code: Literal["VERIFICATION_REQUESTED", "STEP_UP_RECORDED", "REVIEW_RECORDED", "HUMAN_ESCALATION"]
+    note_code: Literal["DISPLAY_RECORDED", "VERIFICATION_REQUESTED", "STEP_UP_RECORDED", "REVIEW_RECORDED", "HUMAN_ESCALATION"]
 
 
 class ActionReceiptV2(_Strict):

@@ -74,11 +74,15 @@ def compute_account_features(
     if not touching:
         return {name: 0.0 for name in FEATURE_NAMES}
 
-    touching = sorted(touching, key=lambda t: _ensure_aware(t.timestamp))
+    touching = sorted(touching, key=lambda t: (_ensure_aware(t.timestamp), t.transaction_id))
     if as_of is None:
         as_of = _ensure_aware(touching[-1].timestamp)
     else:
         as_of = _ensure_aware(as_of)
+        # Leakage guard: an explicit as_of may not see later events.
+        touching = [t for t in touching if _ensure_aware(t.timestamp) <= as_of]
+        if not touching:
+            return {name: 0.0 for name in FEATURE_NAMES}
 
     first_ts = _ensure_aware(touching[0].timestamp)
     acct_age_days = max(0.0, (as_of - first_ts).total_seconds() / 86400.0)

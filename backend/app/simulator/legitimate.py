@@ -5,12 +5,17 @@ high-volume businesses, shared household devices.
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 import random
 from datetime import datetime, timedelta, timezone
 from typing import Iterable
 
 from app.models.transaction import Transaction
 from app.security.tokens import TokenService, epoch_for
+
+# Injected synthetic key. Replaces Python's salted hash() so tokens match across processes.
+SIM_TOKEN_KEY = b"trail-synthetic-token-key-v1"
 
 AMOUNT_BUCKETS = (
     "0_1k",
@@ -40,10 +45,24 @@ def _bucket_for_amount(amount: float) -> str:
     return "500k_plus"
 
 
-def _tok(svc: TokenService | None, rail: str, ref: str, ts: datetime) -> str:
+def stable_reference_token(rail: str, ref: str, ts: datetime, key: bytes = SIM_TOKEN_KEY) -> str:
+    """HMAC reference token for simulator fixtures. `key` is a test key, not a production secret."""
+    epoch = epoch_for(ts)
+    msg = rail.upper().encode() + b"\x1f" + ref.encode() + b"\x1f" + epoch.encode()
+    digest = hmac.new(key, msg, hashlib.sha256).digest()[:16]
+    return "tok_" + digest.hex()
+
+
+def _tok(
+    svc: TokenService | None,
+    rail: str,
+    ref: str,
+    ts: datetime,
+    *,
+    key: bytes = SIM_TOKEN_KEY,
+) -> str:
     if svc is None:
-        # deterministic fallback for offline unit tests without a master secret
-        return f"tok_{abs(hash((rail, ref, epoch_for(ts)))) % (16**32):032x}"
+        return stable_reference_token(rail, ref, ts, key=key)
     return svc.reference_token(rail, ref, epoch_for(ts))
 
 
@@ -113,7 +132,7 @@ def generate_legitimate_transactions(
                 transaction_type=tx_type,
             )
         )
-    txs.sort(key=lambda t: t.timestamp)
+    txs.sort(key=lambda t: (t.timestamp, t.transaction_id))
     return txs
 
 

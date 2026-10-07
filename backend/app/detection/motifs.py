@@ -137,15 +137,26 @@ def _zeros() -> dict[str, float]:
 
 def extract_motif_features(
     index: EventIndex,
-    subject_token: str,
+    subject_token: str | object,
     as_of: datetime,
     *,
     expected_institutions: int = 1,
     evidence_ttl_s: float = 6 * 3600,
 ) -> dict[str, float]:
-    """Motifs for one token using only events at or before as_of."""
+    """Extract bounded motifs with an optional strict current-event boundary.
+
+    The v1 evaluator passes a token and retains its historical behavior.  New
+    callers may pass the current event object; that form excludes the current,
+    equal-time, and post-event rows before any motif is computed.
+    """
+    current_event = subject_token if hasattr(subject_token, "event_id") else None
+    if current_event is not None:
+        subject_token = current_event.payee_token
     as_of = _aware(as_of)
     events = [e for e in index.events if e.occurred_at <= as_of]
+    if current_event is not None:
+        current_time = _aware(current_event.occurred_at)
+        events = [e for e in events if e.event_id != current_event.event_id and _aware(e.occurred_at) < current_time]
     touching = [e for e in events if e.source_token == subject_token or e.payee_token == subject_token]
     feats = _zeros()
     if not touching:
@@ -153,6 +164,12 @@ def extract_motif_features(
         feats["freshness_seconds"] = 1e9
         feats["expired_fraction"] = 1.0
         feats["participation_ratio"] = 0.0
+        if current_event is not None:
+            current_age = str(getattr(current_event.payee_age_bucket, "value", current_event.payee_age_bucket))
+            current_session = str(getattr(current_event.session_context, "value", current_event.session_context))
+            feats["payee_age_new"] = 1.0 if current_age == "new" else 0.0
+            feats["urgent_context"] = 1.0 if current_session == "URGENT_SOCIAL_ENGINEERING" else 0.0
+            feats["new_payee_no_onward"] = 1.0 if current_age == "new" else 0.0
         return feats
 
     h1 = as_of - timedelta(hours=1)
@@ -270,6 +287,12 @@ def extract_motif_features(
     feats["payee_age_new"] = 1.0 if latest.payee_age_bucket == "new" else 0.0
     feats["urgent_context"] = 1.0 if latest.session_context == "URGENT_SOCIAL_ENGINEERING" else 0.0
     feats["new_payee_no_onward"] = 1.0 if latest.payee_age_bucket == "new" and len(outbound) == 0 else 0.0
+    if current_event is not None:
+        current_age = str(getattr(current_event.payee_age_bucket, "value", current_event.payee_age_bucket))
+        current_session = str(getattr(current_event.session_context, "value", current_event.session_context))
+        feats["payee_age_new"] = 1.0 if current_age == "new" else 0.0
+        feats["urgent_context"] = 1.0 if current_session == "URGENT_SOCIAL_ENGINEERING" else 0.0
+        feats["new_payee_no_onward"] = 1.0 if current_age == "new" and len(outbound) == 0 else 0.0
 
     complete = 0
     expired = 0

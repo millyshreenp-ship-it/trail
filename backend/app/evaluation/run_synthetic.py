@@ -30,6 +30,7 @@ from app.evaluation.metrics import (
 )
 from app.evaluation.splits import inductive_holdout, legitimate_stress, open_set_split, temporal_masks
 from app.simulator.generator import generate_preauth_corpus, write_manifest
+from app.simulator.sim2 import CorpusConfig
 
 ALERTS_PER_THOUSAND = 20.0
 ROOT = Path(__file__).resolve().parents[3]
@@ -389,13 +390,170 @@ def _degradation(events, labels) -> dict:
     }
 
 
-def main() -> None:
+def run_corrected_evaluation(**kwargs):
+    """Lazy entry point for the separate earlytrace-sim-2 path."""
+    from app.evaluation.run_sim2 import run_sim2_evaluation
+    return run_sim2_evaluation(**kwargs)
+
+
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Synthetic EarlyTrace evaluation")
-    parser.add_argument("--seed", type=int, default=7)
-    parser.add_argument("--days", type=int, default=24)
+    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--seeds", type=str, default=None, help="comma-separated sim-2 seeds for a descriptive multi-seed run")
+    parser.add_argument("--days", type=int, default=None, help="v1 compatibility path only")
+    parser.add_argument("--story-count", type=int, default=None)
+    parser.add_argument("--volume-target", type=int, default=None)
+    parser.add_argument("--calendar-days", type=int, default=None)
+    parser.add_argument("--institutions", type=str, default=None)
+    parser.add_argument("--mixture", type=str, default=None, help="JSON object of normalized sim-2 scenario weights")
+    parser.add_argument("--held-out-morphology", type=str, default=None)
     parser.add_argument("--out", type=str, default="")
+    parser.add_argument("--sim-2", action="store_true", help="run the corrected story-based research path")
+    parser.add_argument("--mode", choices=("v1", "sim2"), default=None)
+    return parser
+
+
+def _parse_seed_list(value: str, parser: argparse.ArgumentParser) -> tuple[int, ...]:
+    parts = value.split(",")
+    if not parts or any(not part.strip() for part in parts):
+        parser.error("--seeds must be a non-empty comma-separated integer list")
+    try:
+        seeds = tuple(int(part.strip()) for part in parts)
+    except ValueError:
+        parser.error("--seeds must be a comma-separated integer list")
+    if len(set(seeds)) != len(seeds):
+        parser.error("--seeds must not contain duplicates")
+    return seeds
+
+
+def _parse_mixture(value: str | None, parser: argparse.ArgumentParser) -> dict[str, float] | None:
+    if value is None:
+        return None
+
+    def reject_constant(token: str):
+        raise ValueError(f"non-finite JSON constant {token}")
+
+    try:
+        mixture = json.loads(value, parse_constant=reject_constant)
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        parser.error(f"--mixture must be a finite JSON object: {exc}")
+    if not isinstance(mixture, dict):
+        parser.error("--mixture must be a JSON object")
+    return mixture
+
+
+def _normalise_sim2_args(args: argparse.Namespace, parser: argparse.ArgumentParser) -> dict[str, object]:
+    sim2_requested = args.sim_2 or args.mode == "sim2"
+    if args.sim_2 and args.mode == "v1":
+        parser.error("--sim-2 is incompatible with --mode v1")
+    sim2_fields = (
+        args.seeds, args.story_count, args.volume_target, args.calendar_days,
+        args.institutions, args.mixture, args.held_out_morphology,
+    )
+    if not sim2_requested:
+        if any(value is not None for value in sim2_fields):
+            parser.error("sim-2 options require --mode sim2 or --sim-2")
+        return {
+            "mode": "v1",
+            "seed": 7 if args.seed is None else args.seed,
+            "days": 24 if args.days is None else args.days,
+        }
+    if args.days is not None:
+        parser.error("--days is only valid for the v1 evaluator")
+    if args.seed is not None and args.seeds is not None:
+        parser.error("--seed and --seeds cannot be combined")
+    seeds = _parse_seed_list(args.seeds, parser) if args.seeds is not None else None
+    seed = 7 if args.seed is None else args.seed
+    calendar_days = 180 if args.calendar_days is None else args.calendar_days
+    institutions_value = "BANK_A,BANK_B,BANK_C" if args.institutions is None else args.institutions
+    institutions_parts = institutions_value.split(",")
+    if not institutions_parts or any(not part.strip() for part in institutions_parts):
+        parser.error("--institutions must be a non-empty comma-separated list")
+    institutions = tuple(part.strip() for part in institutions_parts)
+    held_out = "split_value" if args.held_out_morphology is None else args.held_out_morphology
+    mixture = _parse_mixture(args.mixture, parser)
+    story_count = args.story_count
+    volume_target = args.volume_target
+    if story_count is None and volume_target is None:
+        story_count = 3000
+    candidate_seeds = seeds or (seed,)
+    try:
+        for candidate_seed in candidate_seeds:
+            CorpusConfig(
+                seed=candidate_seed,
+                story_count=story_count,
+                volume_target=volume_target,
+                calendar_days=calendar_days,
+                institutions=institutions,
+                scenario_mixture=mixture,
+                held_out_morphology=held_out,
+            )
+    except (TypeError, ValueError) as exc:
+        parser.error(str(exc))
+    return {
+        "mode": "sim2",
+        "seed": seed,
+        "seeds": seeds,
+        "story_count": story_count,
+        "volume_target": volume_target,
+        "calendar_days": calendar_days,
+        "institutions": institutions,
+        "scenario_mixture": mixture,
+        "held_out_morphology": held_out,
+    }
+
+
+def main() -> int:
+    parser = _build_parser()
     args = parser.parse_args()
-    result = run_evaluation(seed=args.seed, n_days=args.days, out_dir=Path(args.out) if args.out else None)
+    controls = _normalise_sim2_args(args, parser)
+    if controls["mode"] == "sim2":
+        from app.evaluation.run_sim2 import run_multi_seed
+
+        if controls["seeds"] is not None:
+            result = run_multi_seed(
+                seeds=controls["seeds"],
+                story_count=controls["story_count"],
+                volume_target=controls["volume_target"],
+                calendar_days=controls["calendar_days"],
+                institutions=controls["institutions"],
+                scenario_mixture=controls["scenario_mixture"],
+                held_out_morphology=controls["held_out_morphology"],
+                out_root=Path(args.out) if args.out else None,
+            )
+            print(json.dumps({
+                "data_status": "synthetic",
+                "split": "complete_story_temporal",
+                "path": result["path"],
+                "aggregate_path": result["aggregate_path"],
+                "seeds": result["seeds"],
+                "failed_seeds": result["failed_seeds"],
+                "claim": result["claim"],
+                "b1_budget_precision": result["b1_budget_precision"],
+            }, indent=2))
+            return 0 if result["success"] else 1
+        result = run_corrected_evaluation(
+            seed=controls["seed"],
+            story_count=controls["story_count"],
+            volume_target=controls["volume_target"],
+            calendar_days=controls["calendar_days"],
+            institutions=controls["institutions"],
+            scenario_mixture=controls["scenario_mixture"],
+            held_out_morphology=controls["held_out_morphology"],
+            out_dir=Path(args.out) if args.out else None,
+        )
+        metrics = result["metrics"]
+        print(json.dumps({
+            "data_status": "synthetic",
+            "split": "complete_story_temporal",
+            "seed": controls["seed"],
+            "engine_version": metrics["engine_version"],
+            "path": result["path"],
+            "budget_support_status": metrics["temporal_test"]["b1"]["budget_support_status"],
+            "unknown_n": metrics["temporal_test"]["b1"]["unknown_n"],
+        }, indent=2))
+        return 0
+    result = run_evaluation(seed=controls["seed"], n_days=controls["days"], out_dir=Path(args.out) if args.out else None)
     metrics = result["metrics"]
     print(json.dumps({
         "data_status": "synthetic",
@@ -407,7 +565,8 @@ def main() -> None:
         "b0_precision": metrics["comparison"]["b0_precision"],
         "b1_precision": metrics["comparison"]["b1_precision"],
     }, indent=2))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

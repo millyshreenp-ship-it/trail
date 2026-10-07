@@ -1,10 +1,11 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Trail · Investigator Console</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
 <style>
 :root{--bg:#0f1420;--pn:#171e2e;--ln:#26304a;--tx:#e6ebf5;--mu:#8a96b0;--ac:#5b8cff;--ok:#2ecc8f;--wa:#f5a524;--hi:#ff7a45;--cr:#ff4d6d}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px system-ui,sans-serif;height:100vh;display:flex;flex-direction:column}
+.banner{background:#3a2a12;color:#f5a524;padding:8px 16px;font-size:13px}.legacy-banner{background:#202942;color:var(--tx)}
+.et{display:none;padding:16px;overflow:auto}.et.on{display:block}
 header{display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--ln);background:var(--pn)}
 header b{font-size:16px;letter-spacing:.5px}header small{color:var(--mu)}header .sp{flex:1}
 select,button{background:#1f2840;color:var(--tx);border:1px solid var(--ln);border-radius:6px;padding:6px 10px;font:inherit;cursor:pointer}
@@ -13,77 +14,129 @@ main{flex:1;display:grid;grid-template-columns:270px 1fr 400px;min-height:0}
 section{border-right:1px solid var(--ln);padding:12px;overflow:auto;min-height:0}section:last-child{border:0}
 h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--mu)}
 .card{background:var(--pn);border:1px solid var(--ln);border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer}.card.sel{border-color:var(--ac)}
-.tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600}
-.CRITICAL{background:var(--cr)}.HIGH{background:var(--hi)}.MEDIUM{background:var(--wa);color:#222}.LOW{background:var(--ok);color:#222}
+.tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600}.CRITICAL{background:var(--cr)}.HIGH{background:var(--hi)}.MEDIUM{background:var(--wa);color:#222}.LOW{background:var(--ok);color:#222}
 .kv{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}.kv div{background:var(--pn);border:1px solid var(--ln);border-radius:6px;padding:6px 8px}.kv b{display:block;font-size:16px}.kv span{color:var(--mu);font-size:11px}
-#cy{height:420px;background:var(--pn);border:1px solid var(--ln);border-radius:8px}
+#cy{height:420px;background:var(--pn);border:1px solid var(--ln);border-radius:8px;overflow:auto}.graph-fallback{padding:10px}.graph-fallback table{margin-top:8px}
 .mu{color:var(--mu)}.why li{margin:3px 0}.ok{color:var(--ok)}.bad{color:var(--cr)}
-.prop{background:var(--pn);border:1px solid var(--ln);border-radius:8px;padding:10px;margin-bottom:8px}
-.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}code{background:#0b0f19;padding:1px 5px;border-radius:4px;font-size:12px}
-#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#243460;border:1px solid var(--ac);padding:10px 16px;border-radius:8px;display:none;max-width:70vw}
-table{width:100%;border-collapse:collapse;font-size:12px}td,th{border-bottom:1px solid var(--ln);padding:4px;text-align:left}
+.prop{background:var(--pn);border:1px solid var(--ln);border-radius:8px;padding:10px;margin-bottom:8px}.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}code{background:#0b0f19;padding:1px 5px;border-radius:4px;font-size:12px}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#243460;border:1px solid var(--ac);padding:10px 16px;border-radius:8px;display:none;max-width:70vw;z-index:10}
+table{width:100%;border-collapse:collapse;font-size:12px}td,th{border-bottom:1px solid var(--ln);padding:4px;text-align:left}.status-grid{display:grid;grid-template-columns:repeat(3,minmax(150px,1fr));gap:8px}.status-grid .prop{margin:0}
 </style></head><body>
-<header><b>TRAIL</b><small>Investigator Console</small><span class="tag LOW" id="env" style="display:none"></span><span class="sp"></span>
+<div class="banner" id="dataBoundary">Synthetic data only. Sources are synthetic generator or registered sandbox/staging fixtures. Consent and coverage are shown when available. Risk scores are uncalibrated indices unless the server explicitly says otherwise. EarlyTrace is not connected to a bank, NPCI, UPI switch, or customer database. Nothing is frozen, rejected, reversed, or reported automatically.</div>
+<header><b>TRAIL</b><small>Investigator Console</small><button id="modeCase" class="on">Legacy Cases</button><button id="modeEt">EarlyTrace</button><span class="tag LOW" id="env" style="display:none"></span><span class="sp"></span>
 <span class="mu" id="who"></span><select id="role" style="display:none"></select><button id="lo">Sign out</button><button id="vb">Verify audit chain</button></header>
+<div id="legacyBanner" class="banner legacy-banner">Legacy Cases: Legacy complaint / institution-executed workflow. Its human approval path is separate from EarlyTrace and is not an EarlyTrace action.</div>
 <main>
-<section><h3>Case queue</h3><div id="queue"></div></section>
+<section><h3>Legacy case queue</h3><div id="queue"></div></section>
 <section id="mid"><div id="head"></div>
 <div class="row" style="margin:0 0 8px"><button id="vt" class="on">Trail view (all institutions)</button><button id="vs">Siloed view (one bank)</button>
 <select id="inst" style="display:none"></select></div>
 <div id="cy"></div><p id="gnote" class="mu"></p>
 <h3 style="margin-top:14px">Audit trail</h3><div id="audit"></div></section>
-<section id="right"><p class="mu">Select a case.</p></section>
-</main><div id="login" style="position:fixed;inset:0;background:var(--bg);display:none;place-items:center;z-index:9"><div class="card" style="width:340px;cursor:default"><h2 style="margin:0 0 4px">TRAIL</h2><p class="mu" style="margin:0 0 12px">Sign in with your API key</p><input id="ak" type="password" placeholder="API key" style="width:100%;padding:8px;background:#0b0f19;color:var(--tx);border:1px solid var(--ln);border-radius:6px;margin-bottom:8px"><button class="p" id="go" style="width:100%">Sign in</button><div id="sb" style="margin-top:12px"></div><p id="lerr" class="bad"></p></div></div><div id="toast"></div>
+<section id="right"><p class="mu">Select a legacy case.</p></section>
+</main>
+<section id="early" class="et">
+<div class="banner" id="etModeBanner">OFFLINE SYNTHETIC REPLAY. This deterministic view does not call the API and never creates a live audit receipt.</div>
+<h3>EarlyTrace pre-authorisation</h3>
+<div class="row">
+<button id="etNormal">Protected merchant / allow</button>
+<button id="etSus">Urgent new payee / step-up</button>
+<button id="etFwd">Rapid forward / review</button>
+<button id="etMerch">Hub outage / unknown</button>
+<button id="etLive">Try registered API</button>
+</div>
+<p id="etStatus" class="mu">Choose a synthetic case. Offline actions update only this browser replay.</p>
+<div class="kv" id="etKv"></div>
+<div class="status-grid">
+ <div class="prop"><b>Source and consent</b><div id="etSource" class="mu">—</div></div>
+ <div class="prop"><b>Participation and coverage</b><div id="etParticipation" class="mu">—</div></div>
+ <div class="prop"><b>Uncertainty</b><div id="etUncertainty" class="mu">—</div></div>
+</div>
+<p id="etSafe" class="mu"></p>
+<h3>Subject-time boundary</h3><div id="etTime"></div><p id="etBoundary" class="mu"></p>
+<h3>Reasons tied to features</h3><ul id="etWhy" class="why"></ul>
+<div class="prop"><b>Runtime and audit metadata</b><div id="etRuntime" class="mu"></div><div id="etAudit" class="mu"></div><div id="etExpiry" class="mu"></div></div>
+<div class="row"><button id="etDisplay">Display decision</button><button id="etReview">Record analyst review</button><button id="etStep">Record step-up</button><button id="etEscalate">Record human escalation</button><button id="etFeedback">Quarantine feedback</button></div>
+<p id="etEffect" class="mu">Review, step-up, escalation, and feedback are effect=recorded_only operations. They do not freeze, reject, reverse, accuse, or file a report.</p>
+</section>
+<div id="login" style="position:fixed;inset:0;background:var(--bg);display:none;place-items:center;z-index:9"><div class="card" style="width:340px;cursor:default"><h2 style="margin:0 0 4px">TRAIL</h2><p class="mu" style="margin:0 0 12px">Sign in with your API key</p><input id="ak" type="password" placeholder="API key" style="width:100%;padding:8px;background:#0b0f19;color:var(--tx);border:1px solid var(--ln);border-radius:6px;margin-bottom:8px"><button class="p" id="go" style="width:100%">Sign in</button><button id="etOffline" style="width:100%;margin-top:8px">Open EarlyTrace replay</button><div id="sb" style="margin-top:12px"></div><p class="mu">The replay uses planted synthetic cases and does not need the hub.</p><p id="lerr" class="bad"></p></div></div><div id="toast"></div>
 <script>
 const ACT={A1:"Monitor 24h",A2:"Hold (lower bound)",A3:"Extend to upper bound",A4:"Full freeze",A5:"Verification outreach"};
 const COL={CRITICAL:"#ff4d6d",HIGH:"#ff7a45",MEDIUM:"#f5a524",LOW:"#2ecc8f"};
-const API=location.protocol==="file:"?"http://localhost:8000":"";const $=id=>document.getElementById(id);let key=sessionStorage.getItem("trail_key")||"",cur=null,view="trail",cy=null,detail=null;
+const API=location.protocol==="file:"?"http://localhost:8000":"";const $=id=>document.getElementById(id);let key=sessionStorage.getItem("trail_key")||"",cur=null,view="trail",detail=null;
 const inr=n=>"₹"+Math.round(n).toLocaleString("en-IN");
+const esc=value=>String(value==null?"—":value).replace(/[&<>\"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'\"':"&quot;", "'":"&#39;"}[ch]));
 function toast(m,bad){const t=$("toast");t.textContent=m;t.style.borderColor=bad?"#ff4d6d":"#5b8cff";t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",5000)}
-async function api(path,opt={}){let r;try{r=await fetch(API+path,{...opt,headers:{"X-API-Key":key,"Content-Type":"application/json"}})}catch(_){throw new Error("Cannot reach the Trail hub at "+(API||location.origin)+". Start it with: python scripts/seed_sandbox.py")}
+async function api(path,opt={}){let r;try{r=await fetch(API+path,{...opt,headers:{"X-API-Key":key,"Content-Type":"application/json",...(opt.headers||{})}})}catch(_){throw new Error("Cannot reach the local Trail API")}
  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(typeof j.detail==="string"?j.detail:JSON.stringify(j.detail||j));return j}
-async function queue(){try{const cs=await api("/cases");$("queue").innerHTML=cs.map(c=>`<div class="card ${c.case_id===cur?"sel":""}" onclick="open('${c.case_id}')"><b>${c.case_id}</b> <span class="tag ${c.risk_level}">${c.risk_level||"—"}</span>
- <div class="mu">${c.potentially_traceable?inr(c.potentially_traceable)+" traceable · ":""}${c.n_institutions||0} inst · ${c.n_hops||0} hops</div><div class="mu">${c.status}</div></div>`).join("")||"<p class=mu>No cases</p>";return cs}catch(e){$("queue").innerHTML=`<p class=bad>${e.message}</p>`}}
-async function open(id){cur=id;queue();try{detail=await api("/cases/"+id)}catch(e){return toast(e.message,1)}
+async function queue(){try{const cs=await api("/cases");$("queue").innerHTML=cs.map(c=>`<div class="card ${c.case_id===cur?"sel":""}" onclick="openCase('${esc(c.case_id)}')"><b>${esc(c.case_id)}</b> <span class="tag ${esc(c.risk_level)}">${esc(c.risk_level||"—")}</span>
+ <div class="mu">${c.potentially_traceable?inr(c.potentially_traceable)+" traceable · ":""}${esc(c.n_institutions||0)} inst · ${esc(c.n_hops||0)} hops</div><div class="mu">${esc(c.status)}</div></div>`).join("")||"<p class=mu>No cases</p>";return cs}catch(e){$("queue").innerHTML=`<p class=bad>${esc(e.message)}</p>`}}
+async function openCase(id){cur=id;queue();try{detail=await api("/cases/"+encodeURIComponent(id))}catch(e){return toast(e.message,1)}
  const c=detail.card,cs=detail.case;
- $("head").innerHTML=`<h2 style="margin:0 0 4px">${c.case_id} <span class="tag ${c.risk_level}">${c.risk_level}</span></h2>
- <div class="mu">${cs.status} · golden window ends ${new Date(c.golden_window_expires_at).toLocaleTimeString()} · onward sharing ${detail.onward_sharing_allowed?'<span class=ok>allowed (two-key met)</span>':'<span class=bad>blocked</span>'}</div>
- <div class="kv"><div><b>${inr(c.potentially_traceable||0)}</b><span>potentially traceable</span></div><div><b>${c.n_institutions} institutions · ${c.n_hops} hops</b><span>${c.pattern}</span></div>
- <div><b>${c.high_risk_receivers} high-risk</b><span>${c.likely_legitimate} likely legitimate</span></div><div><b>${Math.round((c.confidence||0)*100)}%</b><span>confidence · rec. ${c.recommended_action} ${c.recommended_action_label||""}</span></div></div>`;
- const insts=cs.ring?cs.ring.institutions:[];$("inst").innerHTML=insts.map(i=>`<option>${i}</option>`).join("");
- drawGraph();renderRight();loadAudit()}
-async function drawGraph(){if(!cur)return;let q=`/graph/${cur}?view=${view}`;if(view==="siloed")q+="&institution="+$("inst").value;
- try{const g=await api(q);if(cy)cy.destroy();
- cy=cytoscape({container:$("cy"),elements:[...g.nodes,...g.edges],layout:{name:"breadthfirst",directed:true,spacingFactor:1.3,padding:30},
- style:[{selector:"node",style:{label:"data(label)",color:"#e6ebf5","font-size":11,"text-valign":"bottom","text-margin-y":6,width:38,height:38,"background-color":n=>COL[n.data("risk_level")]||"#888","border-width":n=>n.data("receiver_class")==="legitimate_receiver"?4:0,"border-color":"#2ecc8f"}},
- {selector:"edge",style:{width:2,"line-color":"#5b6b92","target-arrow-color":"#5b6b92","target-arrow-shape":"triangle","curve-style":"bezier"}}]});
- cy.on("tap","node",e=>{const d=e.target.data();toast(`${d.label}: ${inr(d.tainted_lo)} tainted · ${d.minutes_since_seed} min from seed · ${d.receiver_class}. ${(d.reasons||[]).join("; ")}`)});
- $("gnote").textContent=view==="siloed"?`${$("inst").value} alone sees ${g.nodes.length} of ${g.nodes.length+g.hidden_hops} hops — the ring is invisible from one silo.`:"Green ring = likely legitimate receiver (verification, not a freeze). Click a node for detail."}catch(e){toast(e.message,1)}}
+ $("head").innerHTML=`<h2 style="margin:0 0 4px">${esc(c.case_id)} <span class="tag ${esc(c.risk_level)}">${esc(c.risk_level)}</span></h2>
+ <div class="mu">${esc(cs.status)} · golden window ends ${new Date(c.golden_window_expires_at).toLocaleTimeString()} · onward sharing ${detail.onward_sharing_allowed?'<span class=ok>allowed (two-key met)</span>':'<span class=bad>blocked</span>'}</div>
+ <div class="kv"><div><b>${inr(c.potentially_traceable||0)}</b><span>potentially traceable</span></div><div><b>${esc(c.n_institutions)} institutions · ${esc(c.n_hops)} hops</b><span>${esc(c.pattern)}</span></div>
+ <div><b>${esc(c.high_risk_receivers)} high-risk</b><span>${esc(c.likely_legitimate)} likely legitimate</span></div><div><b>${Math.round((c.confidence||0)*100)}%</b><span>confidence · rec. ${esc(c.recommended_action)} ${esc(c.recommended_action_label||"")}</span></div></div>`;
+ const insts=cs.ring?cs.ring.institutions:[];$("inst").innerHTML=insts.map(i=>`<option>${esc(i)}</option>`).join("");drawGraph();renderRight();loadAudit()}
+async function drawGraph(){if(!cur)return;let q=`/graph/${encodeURIComponent(cur)}?view=${view}`;if(view==="siloed")q+="&institution="+encodeURIComponent($("inst").value);
+ try{const g=await api(q);const nodes=g.nodes||[];const rows=nodes.map(n=>{const d=n.data||n;return `<tr><td>${esc(d.label)}</td><td>${esc(d.institution)}</td><td>${esc(d.risk_level)}</td><td>${esc(d.receiver_class||"—")}</td></tr>`}).join("");
+ // A local table is deliberately used instead of a CDN or unverified graph asset.
+ $("cy").innerHTML=`<div class="graph-fallback"><b>Local timeline/table view</b><p class="mu">Repeated transfers remain separate records. Select a row in the legacy case panel for details.</p><table><tr><th>pseudonym</th><th>institution</th><th>risk</th><th>class</th></tr>${rows||"<tr><td colspan=4>No visible nodes</td></tr>"}</table></div>`;
+ $("gnote").textContent=view==="siloed"?`${$("inst").value} alone sees ${nodes.length} visible nodes and ${g.hidden_hops||0} hidden hops.`:"Local table fallback: likely legitimate receivers are shown for verification, not an automatic hold."}catch(e){toast(e.message,1)}}
 $("vt").onclick=()=>{view="trail";$("inst").style.display="none";$("vt").className="on";$("vs").className="";drawGraph()};
 $("vs").onclick=()=>{view="siloed";$("inst").style.display="";$("vs").className="on";$("vt").className="";drawGraph()};$("inst").onchange=drawGraph;
-function renderRight(){const cs=detail.case,hops=cs.ring?cs.ring.hops:[];
- let h=`<h3>Why flagged</h3><ul class="why">`+(cs.ring?cs.ring.reasons.map(r=>`<li>✓ ${r}</li>`).join(""):"")+"</ul>"+
- hops.map(p=>`<div class="mu" style="margin:4px 0"><span class="tag ${p.risk_level}">${p.risk_level}</span> <b>${p.institution}</b> · ${inr(p.tainted_amount_lo)}–${inr(p.tainted_amount_hi)} · ${p.receiver_class.replace("_"," ")}<br>${p.reasons.map(r=>"• "+r).join("<br>")}</div>`).join("");
- h+=`<h3 style="margin-top:14px">Proposed actions (human decision required)</h3>`;
- h+=cs.proposals.map(p=>{const s=detail.proposal_states[p.proposal_id],hp=hops.find(x=>x.hop_index===p.hop_index);
-  return `<div class="prop"><b>${p.action}</b> ${ACT[p.action]||""} → ${hp.institution} (hop ${p.hop_index})<div class="mu">reason <code>${p.reason_code}</code> · ${p.duration_hours}h${p.amount_cap?" · cap "+inr(p.amount_cap):""} · <b>${s}</b></div>
-  <div class="mu" style="margin-top:4px">${p.rationale}</div>${s==="PENDING"?`<div class="row"><button class="g" onclick="decide('${p.proposal_id}','approve')">Approve</button><button class="r" onclick="decide('${p.proposal_id}','reject')">Reject</button><button onclick="decide('${p.proposal_id}','escalate')">Escalate</button></div>`:""}</div>`}).join("")||"<p class=mu>None</p>";
- h+=`<h3 style="margin-top:14px">Time-limited orders</h3>`+(cs.orders.length?cs.orders.map(o=>`<div class="prop"><b>${o.action}</b> at ${o.institution} · <b>${o.status}</b><div class="mu">audit <code>${o.audit_id}</code><br>reason <code>${o.reason_code}</code><br>expires ${new Date(o.expires_at).toLocaleString()}<br>approved by ${o.approved_by.join(", ")}<br>${o.execution||"institution executes; nothing frozen automatically"}</div></div>`).join(""):"<p class=mu>None yet. Nothing is ever frozen automatically.</p>");
- $("right").innerHTML=h}
-async function decide(pid,d){const note=prompt(`${d.toUpperCase()} — add a note (optional)`);if(note===null)return;
- try{const r=await api(`/cases/${cur}/proposals/${pid}/decision`,{method:"POST",body:JSON.stringify({decision:d,note})});
-  toast(r.proposal_state==="APPROVED"?`Approved. Audit ${r.audit_id} · reason ${r.reason_code} · expires ${new Date(r.expires_at).toLocaleString()}`:`${d}: ${r.proposal_state}${r.approvals_so_far?" · approvals so far: "+r.approvals_so_far.join(", "):""} · audit ${r.audit_id}`)}
- catch(e){toast(e.message,1)}open(cur)}
-async function loadAudit(){try{const a=await api("/audit"+(cur?"?subject="+cur:""));
- $("audit").innerHTML="<table><tr><th>#</th><th>audit id</th><th>actor</th><th>event</th><th>reason</th></tr>"+a.slice(-12).reverse().map(e=>`<tr><td>${e.seq}</td><td><code>${e.audit_id}</code></td><td>${e.actor} (${e.role})</td><td>${e.action}</td><td>${e.reason_code||""}</td></tr>`).join("")+"</table>"}
- catch(e){$("audit").innerHTML=`<p class="mu">Audit log needs the auditor role (${e.message}).</p>`}}
-$("vb").onclick=async()=>{try{const v=await api("/audit/verify");toast(v.chain_intact?`Audit chain intact (${v.entries} entries)`:`TAMPERING at entry ${v.first_bad_seq}`,!v.chain_intact)}catch(e){toast("Audit verification requires the auditor role",1)}};
-async function signIn(k){key=k;try{const cs=await api("/cases");sessionStorage.setItem("trail_key",k);$("login").style.display="none";
- $("who").textContent="Signed in";$("lerr").textContent="";cur=null;queue().then(c=>c&&c[0]&&open(c[0].case_id));loadAudit()}
- catch(e){key="";sessionStorage.removeItem("trail_key");$("login").style.display="grid";$("lerr").textContent=/401/.test(e.message)||/Invalid/.test(e.message)?"Invalid API key":e.message}}
-$("go").onclick=()=>signIn($("ak").value);$("ak").onkeydown=e=>e.key==="Enter"&&signIn($("ak").value);
-$("lo").onclick=()=>{sessionStorage.removeItem("trail_key");key="";cur=null;$("queue").innerHTML="";$("login").style.display="grid"};
-fetch(API+"/meta").then(r=>r.json()).then(m=>{if(m.environment!=="production"){$("env").textContent=m.environment;$("env").style.display="";
- $("sb").innerHTML='<div class="mu" style="margin-bottom:6px">Sandbox accounts</div>'+m.sandbox_accounts.map(a=>`<button style="width:100%;margin-bottom:4px" onclick="signIn('${a.key}')">${a.label}</button>`).join("")}});
+function renderRight(){const cs=detail.case,hops=cs.ring?cs.ring.hops:[];let h=`<h3>Why flagged</h3><ul class="why">`+(cs.ring?cs.ring.reasons.map(r=>`<li>✓ ${esc(r)}</li>`).join(""):"")+"</ul>"+hops.map(p=>`<div class="mu" style="margin:4px 0"><span class="tag ${esc(p.risk_level)}">${esc(p.risk_level)}</span> <b>${esc(p.institution)}</b> · ${inr(p.tainted_amount_lo)}–${inr(p.tainted_amount_hi)} · ${esc(p.receiver_class.replace("_"," "))}<br>${(p.reasons||[]).map(r=>"• "+esc(r)).join("<br>")}</div>`).join("");
+ h+=`<h3 style="margin-top:14px">Proposed actions (human decision required)</h3>`;h+=cs.proposals.map(p=>{const s=detail.proposal_states[p.proposal_id],hp=hops.find(x=>x.hop_index===p.hop_index);return `<div class="prop"><b>${esc(p.action)}</b> ${esc(ACT[p.action]||"")} → ${esc(hp&&hp.institution)} (hop ${esc(p.hop_index)})<div class="mu">reason <code>${esc(p.reason_code)}</code> · ${esc(p.duration_hours)}h${p.amount_cap?" · cap "+inr(p.amount_cap):""} · <b>${esc(s)}</b></div><div class="mu" style="margin-top:4px">${esc(p.rationale)}</div>${s==="PENDING"?`<div class="row"><button class="g" onclick="decide('${esc(p.proposal_id)}','approve')">Approve</button><button class="r" onclick="decide('${esc(p.proposal_id)}','reject')">Reject</button><button onclick="decide('${esc(p.proposal_id)}','escalate')">Escalate</button></div>`:""}</div>`}).join("")||"<p class=mu>None</p>";
+ h+=`<h3 style="margin-top:14px">Time-limited orders</h3>`+(cs.orders.length?cs.orders.map(o=>`<div class="prop"><b>${esc(o.action)}</b> at ${esc(o.institution)} · <b>${esc(o.status)}</b><div class="mu">audit <code>${esc(o.audit_id)}</code><br>reason <code>${esc(o.reason_code)}</code><br>expires ${new Date(o.expires_at).toLocaleString()}<br>approved by ${esc(o.approved_by.join(", "))}<br>${esc(o.execution||"institution executes; nothing frozen automatically")}</div></div>`).join(""):"<p class=mu>None yet. Nothing is ever frozen automatically.</p>");$("right").innerHTML=h}
+async function decide(pid,d){const note=prompt(`${d.toUpperCase()} — add a note (optional)`);if(note===null)return;try{const r=await api(`/cases/${encodeURIComponent(cur)}/proposals/${encodeURIComponent(pid)}/decision`,{method:"POST",body:JSON.stringify({decision:d,note})});toast(r.proposal_state==="APPROVED"?`Approved. Audit ${r.audit_id} · reason ${r.reason_code} · expires ${new Date(r.expires_at).toLocaleString()}`:`${d}: ${r.proposal_state} · audit ${r.audit_id}`)}catch(e){toast(e.message,1)}openCase(cur)}
+async function loadAudit(){try{const a=await api("/audit"+(cur?"?subject="+encodeURIComponent(cur):""));$("audit").innerHTML="<table><tr><th>#</th><th>audit id</th><th>actor</th><th>event</th><th>reason</th></tr>"+a.slice(-12).reverse().map(e=>`<tr><td>${esc(e.seq)}</td><td><code>${esc(e.audit_id)}</code></td><td>${esc(e.actor)} (${esc(e.role)})</td><td>${esc(e.action)}</td><td>${esc(e.reason_code||"")}</td></tr>`).join("")+"</table>"}catch(e){$("audit").innerHTML=`<p class="mu">Audit log needs the auditor role (${esc(e.message)}).</p>`}}
+$("vb").onclick=async()=>{try{const v=await api("/audit/verify");toast(v.chain_intact?`Audit chain intact (${v.entries} entries)`: `TAMPERING at entry ${v.first_bad_seq}`,!v.chain_intact)}catch(e){toast("Audit verification requires the auditor role",1)}};
+async function signIn(k){key=k;try{const cs=await api("/cases");sessionStorage.setItem("trail_key",k);$("login").style.display="none";$("who").textContent="Signed in";$("lerr").textContent="";cur=null;queue().then(c=>c&&c[0]&&openCase(c[0].case_id));loadAudit()}catch(e){key="";sessionStorage.removeItem("trail_key");$("login").style.display="grid";$("lerr").textContent=/401/.test(e.message)||/Invalid/.test(e.message)?"Invalid API key":e.message}}
+$("go").onclick=()=>signIn($("ak").value);$("ak").onkeydown=e=>e.key==="Enter"&&signIn($("ak").value);$("lo").onclick=()=>{sessionStorage.removeItem("trail_key");key="";cur=null;$("queue").innerHTML="";$("login").style.display="grid"};
+if(location.protocol!=="file:"){fetch(API+"/meta").then(r=>r.json()).then(m=>{if(m.earlytrace_fixture_submission){window.EARLYTRACE_SUBMISSIONS={urgent_new_payee:m.earlytrace_fixture_submission}}if(m.environment!=="production"&&m.sandbox_accounts){$("env").textContent=m.profile||m.environment;$("env").style.display="";$("sb").innerHTML='<div class="mu" style="margin-bottom:6px">Sandbox accounts</div>'+m.sandbox_accounts.map(a=>`<button style="width:100%;margin-bottom:4px" onclick="signIn('${esc(a.key)}')">${esc(a.label)}</button>`).join("")}}).catch(()=>{});}
 key?signIn(key):$("login").style.display="grid";
+
+// EarlyTrace is intentionally independent of the legacy Cases workflow.
+const REPLAY_FALLBACK=[
+ {id:"merchant_allow",label:"Protected merchant / familiar allow",event_time:"2026-05-10T09:15:00Z",source:"SANDBOX_FIXTURE",consent:"VERIFIED_LOCAL",participation:"LOCAL_ONLY",local_only:true,coverage:.94,action:"ALLOW",risk_band:"LOW",score:.08,score_kind:"RISK_INDEX",calibrated:false,uncertainty:{level:"LOW",reasons:[]},engine_version:"earlytrace-b0b1-heuristic-v1",calibration_status:"NOT_FITTED",calibration_id:null,audit_id:null,expires_at:null,unknown_reason:null,reasons:[{code:"R_MERCHANT_FANIN",feature:"merchant_fanin",value:"merchant"}],timeline:["Several small synthetic checkouts arrive at one merchant-like payee.","No rapid onward transfer is visible before the subject event."],safe_copy:"Legitimate merchant fan-in is a protected lookalike. No step-up is suggested."},
+ {id:"urgent_new_payee",label:"Urgent new beneficiary / step-up",event_time:"2026-05-18T11:02:00Z",source:"SANDBOX_FIXTURE",consent:"VERIFIED_LOCAL",participation:"LOCAL_ONLY",local_only:true,coverage:.78,action:"STEP_UP",risk_band:"ELEVATED",score:.56,score_kind:"RISK_INDEX",calibrated:false,uncertainty:{level:"MEDIUM",reasons:["new payee; onward movement not yet visible"]},engine_version:"earlytrace-b0b1-heuristic-v1",calibration_status:"NOT_FITTED",calibration_id:null,audit_id:null,expires_at:null,unknown_reason:null,reasons:[{code:"R_URGENT_NEW_PAYEE",feature:"urgent_context",value:"new"}],timeline:["Subject payment is marked urgent and the beneficiary is new.","Future onward movement is excluded from this pre-authorisation view."],safe_copy:"Ask the customer to verify the urgent new beneficiary. This is not a finding that the payee is a mule."},
+ {id:"rapid_forward_review",label:"Rapid forward / analyst review",event_time:"2026-05-20T14:20:00Z",source:"STAGING_REGISTERED_FIXTURE",consent:"VERIFIED_CROSS_INSTITUTION",participation:"FULL",local_only:false,coverage:1,action:"ANALYST_REVIEW",risk_band:"HIGH",score:.81,score_kind:"RISK_INDEX",calibrated:false,uncertainty:{level:"MEDIUM",reasons:["motif is visible; score remains uncalibrated"]},engine_version:"earlytrace-b0b1-heuristic-v1",calibration_status:"NOT_FITTED",calibration_id:null,audit_id:null,expires_at:null,unknown_reason:null,reasons:[{code:"R_RAPID_FORWARD",feature:"rapid_forward_ratio",value:.92}],timeline:["Earlier inbound value reaches the payee.","An onward transfer follows inside the visible short-hop window."],safe_copy:"Queue this for a person. Review is advisory and does not freeze, reject, reverse, or report."},
+ {id:"hub_outage_unknown",label:"Hub outage / local-only unknown",event_time:"2026-05-22T16:45:00Z",source:"SANDBOX_FIXTURE",consent:"VERIFIED_LOCAL",participation:"LOCAL_ONLY",local_only:true,coverage:.5,action:"UNKNOWN",risk_band:"UNKNOWN",score:null,score_kind:"NONE",calibrated:false,uncertainty:{level:"HIGH",reasons:["CONTEXT_UNAVAILABLE"]},engine_version:"earlytrace-b0b1-heuristic-v1",calibration_status:"UNAVAILABLE",calibration_id:null,audit_id:null,expires_at:null,unknown_reason:"CONTEXT_UNAVAILABLE",reasons:[{code:"R_HUB_UNAVAILABLE",feature:"hub_status",value:"local_only"}],timeline:["The optional corroboration hub is unavailable.","Only verified local context is shown; missing evidence is not filled in."],safe_copy:"Evidence is incomplete, so the safe result is UNKNOWN. Do not infer fraud from an outage."}
+];
+let replayCases={},currentEt=null,liveDecision=null,offlineActions={};
+async function loadReplay(){if(Object.keys(replayCases).length)return;try{const response=await fetch("earlytrace-replay.json",{cache:"no-store"});if(!response.ok)throw new Error("replay asset unavailable");const data=await response.json();(data.cases||[]).forEach(item=>replayCases[item.id]=item)}catch(_){REPLAY_FALLBACK.forEach(item=>replayCases[item.id]=item)}}
+function scoreLabel(d){if(d.score_kind==="CALIBRATED_PROBABILITY")return "calibrated probability";if(d.score_kind==="RISK_INDEX")return "risk index (uncalibrated)";return "no score (UNKNOWN)"}
+function displayValue(value){return value==null?"—":typeof value==="number"?value.toFixed(4):String(value)}
+function renderEt(d,mode="offline"){currentEt=d;const offline=mode!=="live";liveDecision=offline?null:d;
+ $("etModeBanner").textContent=offline?"OFFLINE SYNTHETIC REPLAY. This deterministic view does not call the API and never creates a live audit receipt.":"LIVE SYNTHETIC/STAGING API RESULT. Server response is authoritative; scores remain risk indices unless calibrated metadata says otherwise.";
+ $("etStatus").textContent=offline?"Offline replay selected. Actions update only local replay state.":"Decision loaded from the real preauthorisation API. Use only record-only actions.";
+ $("etKv").innerHTML=`<div><b>${esc(d.risk_band)}</b><span>risk band</span></div><div><b>${esc(d.action)}</b><span>advisory action</span></div><div><b>${esc(d.score==null?"—":displayValue(d.score))}</b><span>${esc(scoreLabel(d))}</span></div><div><b>${esc(d.engine_version)}</b><span>engine</span></div>`;
+ $("etSource").textContent=`${d.source||d.event_source||"—"} · consent ${d.consent||d.consent_outcome||"—"}`;
+ $("etParticipation").textContent=`${d.participation||"—"} · local_only=${d.local_only===true} · coverage=${displayValue(d.coverage==null?d.evidence_coverage:d.coverage)}`;
+ const uncertainty=d.uncertainty||{};$("etUncertainty").textContent=`${uncertainty.level||"—"}${uncertainty.reasons&&uncertainty.reasons.length?" · "+uncertainty.reasons.join("; "):""}${d.unknown_reason?" · UNKNOWN: "+d.unknown_reason:""}`;
+ $("etSafe").textContent=d.safe_copy||"Server supplied advisory result.";
+ $("etTime").innerHTML=(d.timeline||[]).map(item=>`<div class="card" style="cursor:default">${esc(item)}</div>`).join("");$("etBoundary").textContent=`Subject event time: ${esc(d.event_time||d.subject_event_time||"—")}. Future and equal-time events are excluded from the feature history; ${offline?"offline replay has no live context count": "server view confirms future-event exclusion"}.`;
+ $("etWhy").innerHTML=(d.reasons||[]).map(r=>`<li><code>${esc(r.code)}</code> · feature <code>${esc(r.feature)}</code> · value ${esc(displayValue(r.value))}</li>`).join("")||"<li>No feature reason supplied.</li>";
+ $("etRuntime").textContent=`engine ${esc(d.engine_version||"—")} · calibration ${esc(d.calibration_status||"—")} · id ${esc(d.calibration_id||"none")}`;
+ $("etAudit").textContent=`audit: ${d.audit_id?d.audit_id:"not generated offline"}`;$("etExpiry").textContent=`expiry: ${d.expires_at||"not generated offline"}`;
+ const actions=offline?(offlineActions[d.id]||[]):[];$("etEffect").textContent=actions.length?`Recorded locally in this replay: ${actions.join(", ")}. No live audit ID or receipt was invented.`:"Review, step-up, escalation, and feedback are record-only operations. They do not freeze, reject, reverse, accuse, or file a report.";
+}
+async function selectEt(id){await loadReplay();const item=replayCases[id]||replayCases.urgent_new_payee;renderEt(item,"offline")}
+function openEarly(){$("login").style.display="none";document.querySelector("main").style.display="none";$("legacyBanner").style.display="none";$("early").classList.add("on");$("modeEt").className="on";$("modeCase").className="";selectEt("urgent_new_payee");}
+$("etOffline").onclick=openEarly;$("modeEt").onclick=openEarly;
+$("modeCase").onclick=()=>{document.querySelector("main").style.display="";$("legacyBanner").style.display="";$("early").classList.remove("on");$("modeCase").className="on";$("modeEt").className=""};
+$("etNormal").onclick=()=>selectEt("merchant_allow");$("etSus").onclick=()=>selectEt("urgent_new_payee");$("etFwd").onclick=()=>selectEt("rapid_forward_review");$("etMerch").onclick=()=>selectEt("hub_outage_unknown");
+function configuredSubmission(item){const supplied=window.EARLYTRACE_SUBMISSIONS||{};return supplied[item.id]||item.api_submission||null}
+async function tryLive(){await loadReplay();const item=currentEt||replayCases.urgent_new_payee;const body=configuredSubmission(item);if(!body){renderEt(item,"offline");$("etStatus").textContent="No registered synthetic API submission is configured; remaining in the offline replay.";return}
+ try{const created=await api("/preauth/decisions",{method:"POST",body:JSON.stringify(body)});renderEt({...created,consent:created.consent_outcome},"live");
+  try{const viewed=await api(`/preauth/decisions/${encodeURIComponent(created.event_id)}/view`);const serverDecision=viewed.decision||created;renderEt({...serverDecision,consent:serverDecision.consent_outcome},"live");$("etBoundary").textContent+=` · excluded_future_events=${viewed.excluded_future_events===true}`;toast("Server decision loaded")}
+  catch(error){$("etStatus").textContent=`Decision committed; the authoritative POST receipt is retained. Detail refresh failed (${error.message}).`;toast("Decision committed; detail refresh unavailable",true)}}
+ catch(error){$("etModeBanner").textContent="API SUBMISSION UNCONFIRMED. Replay data does not establish the server outcome.";$("etStatus").textContent=`Submission outcome is unconfirmed (${error.message}). Reconcile or retry the same submission before assuming it failed. No live receipt was invented.`;toast("Submission outcome requires reconciliation",true)}}
+$("etLive").onclick=tryLive;
+const EARLYTRACE_ACTION_PATHS={DISPLAY:"/display",REVIEW:"/review",STEP_UP:"/step-up",ESCALATE:"/escalate"};
+function actionRoute(kind){return EARLYTRACE_ACTION_PATHS[kind]}
+function actionNote(kind){return {DISPLAY:"DISPLAY_RECORDED",REVIEW:"REVIEW_RECORDED",STEP_UP:"STEP_UP_RECORDED",ESCALATE:"HUMAN_ESCALATION"}[kind]}
+async function recordEtAction(kind){if(!currentEt)return;if(!liveDecision){offlineActions[currentEt.id]=offlineActions[currentEt.id]||[];offlineActions[currentEt.id].push(kind+" (local only)");renderEt(currentEt,"offline");return}const body={schema_version:"earlytrace.action.v2",action_id:"act_"+Date.now().toString(36)+"_local",event_id:liveDecision.event_id,action:kind,note_code:actionNote(kind)};try{const receipt=await api(`/preauth/decisions/${encodeURIComponent(liveDecision.event_id)}${actionRoute(kind)}`,{method:"POST",body:JSON.stringify(body)});$("etEffect").textContent=`${kind} receipt recorded_only. Audit ${receipt.audit_id||"not returned"}; expiry ${receipt.expires_at||"server-controlled"}. No irreversible action was requested.`}catch(error){const fallback=replayCases[currentEt.id]||currentEt;renderEt(fallback,"offline");$("etStatus").textContent=`Action API failed (${error.message}). OFFLINE SYNTHETIC REPLAY remains active; no live receipt was invented.`}}
+$("etDisplay").onclick=()=>recordEtAction("DISPLAY");$("etReview").onclick=()=>recordEtAction("REVIEW");$("etStep").onclick=()=>recordEtAction("STEP_UP");$("etEscalate").onclick=()=>recordEtAction("ESCALATE");
+$("etFeedback").onclick=async()=>{if(!currentEt)return;if(!liveDecision){offlineActions[currentEt.id]=offlineActions[currentEt.id]||[];offlineActions[currentEt.id].push("feedback quarantined (local only)");renderEt(currentEt,"offline");return}const body={schema_version:"earlytrace.feedback.v2",feedback_id:"fb_"+Date.now().toString(36)+"_local",event_id:liveDecision.event_id,label:"inconclusive"};try{const receipt=await api("/preauth/feedback",{method:"POST",body:JSON.stringify(body)});$("etEffect").textContent=`Feedback receipt is quarantined: applied_to_model=${receipt.applied_to_model===false}. No decision was changed.`}catch(error){renderEt(replayCases[currentEt.id]||currentEt,"offline");$("etStatus").textContent=`Feedback API failed (${error.message}); local replay only.`}};
 </script></body></html>

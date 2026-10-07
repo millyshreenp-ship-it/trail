@@ -25,11 +25,15 @@ def test_forbidden_raw_and_unknown_values_fail_without_echo(body):
     assert "123456789" not in str(exc.value)
 
 
-def test_only_live_token_grammar_is_accepted():
-    payload = {"event": {"source_token": "tok_" + "a" * 32, "payee_token": "tok_" + "b" * 32}}
-    assert validate_v2_payload(payload)["event"]["source_token"].startswith("tok_")
+def test_wire_event_accepts_only_server_lookup_identifiers():
+    payload = {"event": {
+        "event_id": "evt_input1", "institution_id": "BANK_A",
+        "event_digest": "a" * 64, "trace_id": "trace_input",
+        "idempotency_key": "idem_input01",
+    }}
+    assert validate_v2_payload(payload)["event"]["event_digest"] == "a" * 64
     with pytest.raises(InputBoundaryError):
-        validate_v2_payload({"event": {"source_token": "acc_" + "a" * 32}})
+        validate_v2_payload({"event": {"source_token": "tok_" + "a" * 32}})
 
 
 def test_external_sources_are_rejected():
