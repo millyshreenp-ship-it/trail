@@ -107,6 +107,53 @@ def scenario_mixed_patterns(
     }
 
 
+def scenario_ring_with_legit_receiver(
+    *,
+    token_service: TokenService | None = None,
+    n_background: int = 1500,
+) -> dict[str, Any]:
+    """Plan §11 steps 8-9: a ring where one receiver is a genuine merchant.
+
+    victim -> acct_lg_seed (A) -> acct_lg_mule (B) -> acct_lg_merchant (C, 40+ day history,
+    does not forward quickly) -> next-day settlement. Expect: mule = ring-controlled / hold,
+    merchant = likely legitimate / verification outreach.
+    """
+    from app.simulator.legitimate import _bucket_for_amount, _id, _tok
+
+    start = datetime(2026, 9, 20, tzinfo=timezone.utc)
+    background = generate_legitimate_transactions(n_background, start=start, token_service=token_service)
+    # merchant has an established customer history (≈45 days before the ring)
+    history = legitimate_shopkeeper_burst(
+        merchant="acct_lg_merchant", institution="BANK_C", n_customers=30,
+        day=datetime(2026, 8, 18, 9, 0, tzinfo=timezone.utc), token_service=token_service,
+    )
+    history = [t.model_copy(update={"transaction_id": f"{t.transaction_id}_lg"}) for t in history]
+    t0 = datetime(2026, 10, 4, 10, 32, tzinfo=timezone.utc)
+    legs = (
+        ("acct_victim_lg", "BANK_A", "acct_lg_seed", "BANK_A", t0, 78_000.0, "P2P"),
+        ("acct_lg_seed", "BANK_A", "acct_lg_mule", "BANK_B", t0 + timedelta(minutes=4), 76_000.0, "P2P"),
+        ("acct_lg_mule", "BANK_B", "acct_lg_merchant", "BANK_C", t0 + timedelta(minutes=9), 74_000.0, "P2M"),
+        ("acct_lg_merchant", "BANK_C", "acct_lg_settle", "BANK_C", t0 + timedelta(hours=26), 70_000.0, "P2P"),
+    )
+    ring = [
+        Transaction(
+            transaction_id=_id("tx_lg", i), rail="UPI", timestamp=ts,
+            source_institution=si, destination_institution=di, source_token=src, destination_token=dst,
+            amount_bucket=_bucket_for_amount(amt), reference_token=_tok(token_service, "UPI", f"LG{i}", ts),
+            device_token=f"dev_{src}", merchant_category=None, transaction_type=ttype,
+        )
+        for i, (src, si, dst, di, ts, amt, ttype) in enumerate(legs)
+    ]
+    txs = sorted(background + history + ring, key=lambda t: t.timestamp)
+    return {
+        "name": "ring_with_legit_receiver",
+        "transactions": txs,
+        "labels": {"acct_lg_seed": "scam_ring", "acct_lg_mule": "mule",
+                   "acct_lg_merchant": "legit", "acct_lg_settle": "legit"},
+        "meta": {"seed": "acct_lg_seed", "legit_receiver": "acct_lg_merchant", "mule": "acct_lg_mule"},
+    }
+
+
 def all_transactions(scenario: dict[str, Any]) -> list[Transaction]:
     return list(scenario["transactions"])
 

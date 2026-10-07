@@ -25,17 +25,30 @@ def classify_receiver(
     is_terminal: bool,
     pattern: str,
     reasons: list[str] | None = None,
+    features: dict[str, float] | None = None,
 ) -> ReceiverClass:
     """Heuristic classifier — explainable, no black-box.
 
     Rules (first match wins, ordered by specificity):
     1. Terminal cash-out with high risk → ring_controlled
     2. High fan-out origin → ring_controlled
-    3. Mid-path, moderate risk, wallet/merchant-like → legitimate or recruited
+    3. Mid-path, moderate risk → legitimate only with evidence (tenure >= 30d and no rapid
+       forwarding) when features are available; otherwise recruited
     4. High risk anywhere in coordinated pattern → ring_controlled
     5. Low risk mid-path → legitimate_receiver
     """
     reasons = reasons or []
+
+    def has_legit_evidence() -> bool:
+        """Positive evidence of a genuine receiver: established account that does NOT rapidly forward.
+
+        When transaction features are unavailable (beacon-only path) we cannot check, so we
+        fall back to the position-based heuristic (returns True).
+        """
+        if features is None:
+            return True
+        return features.get("acct_age_days", 0.0) >= 30.0 and features.get("fwd_ratio_15m", 0.0) < 0.5
+
     reason_blob = " ".join(reasons).lower()
 
     # Explicit merchant / settlement language from local scorer
@@ -63,13 +76,13 @@ def classify_receiver(
 
     if risk_level == RiskLevel.MEDIUM:
         # Classic: intermediate bank that looks like a real merchant/settlement
-        if 0 < hop_index < n_hops - 1 and out_degree <= 2:
+        if 0 < hop_index < n_hops - 1 and out_degree <= 2 and has_legit_evidence():
             return ReceiverClass.LEGITIMATE
         return ReceiverClass.RECRUITED
 
     # LOW
     if 0 < hop_index < n_hops - 1:
-        return ReceiverClass.LEGITIMATE
+        return ReceiverClass.LEGITIMATE if has_legit_evidence() else ReceiverClass.RECRUITED
     return ReceiverClass.UNKNOWN
 
 

@@ -145,6 +145,39 @@ def compute_account_features(
     }
 
 
+def compute_round_trip_ratio(
+    transactions: Sequence[Transaction],
+    account_token: str,
+    *,
+    as_of: datetime | None = None,
+    window_hours: float = 24.0,
+) -> float:
+    """Value-weighted share of inbound money that went straight back to the original sender.
+
+    Refunds and reversals look like rapid forwarding but return funds to the payer; a mule
+    forwards to someone new. Optional signal (not part of the six-feature contract):
+    ``RiskScorer.score_account`` uses it to discount refund-like behaviour.
+    """
+    touching = [t for t in transactions if account_token in (t.source_token, t.destination_token)]
+    if as_of is not None:
+        as_of = _ensure_aware(as_of)
+        touching = [t for t in touching if _ensure_aware(t.timestamp) <= as_of]
+    inbound = [t for t in touching if t.destination_token == account_token]
+    outbound = [t for t in touching if t.source_token == account_token]
+    total = sum(_mid(t.amount_bucket) for t in inbound)
+    if total <= 0:
+        return 0.0
+    returned = 0.0
+    for inc in inbound:
+        inc_ts = _ensure_aware(inc.timestamp)
+        for out in outbound:
+            dt_h = (_ensure_aware(out.timestamp) - inc_ts).total_seconds() / 3600.0
+            if out.destination_token == inc.source_token and 0.0 <= dt_h <= window_hours:
+                returned += min(_mid(out.amount_bucket), _mid(inc.amount_bucket))
+                break
+    return round(min(1.0, returned / total), 4)
+
+
 def compute_features_batch(
     transactions: Sequence[Transaction],
     accounts: Iterable[str] | None = None,

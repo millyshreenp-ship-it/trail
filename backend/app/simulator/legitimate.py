@@ -206,3 +206,99 @@ def legitimate_student_rent(
             )
         )
     return out
+
+
+def legitimate_refund_pair(
+    merchant: str = "acct_refund_merchant",
+    customer: str = "acct_refund_cust",
+    *,
+    day: datetime | None = None,
+    token_service: TokenService | None = None,
+) -> list[Transaction]:
+    """Customer pays a merchant, merchant refunds minutes later (looks like a rapid forward / round trip)."""
+    day = day or datetime(2026, 10, 3, 14, 0, tzinfo=timezone.utc)
+    rail = "UPI"
+    out = []
+    for i, (src, dst, s_inst, d_inst, ts, ttype) in enumerate((
+        (customer, merchant, "BANK_A", "BANK_B", day, "P2M"),
+        (merchant, customer, "BANK_B", "BANK_A", day + timedelta(minutes=6), "REFUND"),
+    )):
+        out.append(Transaction(
+            transaction_id=_id("tx_refund", i), rail=rail, timestamp=ts,
+            source_institution=s_inst, destination_institution=d_inst,
+            source_token=src, destination_token=dst, amount_bucket="1k_10k",
+            reference_token=_tok(token_service, rail, f"REFUND{i}", ts),
+            device_token=f"dev_{src}", merchant_category="marketplace", transaction_type=ttype))
+    return out
+
+
+def legitimate_gig_worker(
+    worker: str = "acct_gig_001",
+    institution: str = "BANK_C",
+    *,
+    n_payouts: int = 12,
+    day: datetime | None = None,
+    token_service: TokenService | None = None,
+    rng: random.Random | None = None,
+) -> list[Transaction]:
+    """Platform payout in the morning, worker immediately spreads it to many payees (looks like fan-out)."""
+    rng = rng or random.Random(11)
+    day = day or datetime(2026, 10, 2, 8, 0, tzinfo=timezone.utc)
+    rail = "UPI"
+    out: list[Transaction] = []
+    for i in range(n_payouts):
+        ts = day + timedelta(hours=i * 0.5)
+        out.append(Transaction(
+            transaction_id=_id("tx_gig_in", i), rail=rail, timestamp=ts,
+            source_institution="BANK_A", destination_institution=institution,
+            source_token="acct_gig_platform", destination_token=worker,
+            amount_bucket="1k_10k", reference_token=_tok(token_service, rail, f"GIGIN{i}", ts),
+            device_token="dev_gig_platform", merchant_category=None, transaction_type="SALARY"))
+        out.append(Transaction(
+            transaction_id=_id("tx_gig_out", i), rail=rail, timestamp=ts + timedelta(minutes=rng.randint(2, 10)),
+            source_institution=institution, destination_institution=rng.choice(INSTITUTIONS),
+            source_token=worker, destination_token=f"acct_gig_payee_{i % 6}",
+            amount_bucket="0_1k", reference_token=_tok(token_service, rail, f"GIGOUT{i}", ts),
+            device_token=f"dev_{worker}", merchant_category=None, transaction_type="P2P"))
+    return out
+
+
+def legitimate_high_volume_business(
+    business: str = "acct_biz_001",
+    institution: str = "BANK_A",
+    *,
+    n_inbound: int = 60,
+    day: datetime | None = None,
+    token_service: TokenService | None = None,
+    rng: random.Random | None = None,
+) -> list[Transaction]:
+    """Busy business: many customers in during the day, one end-of-day settlement out to its own account."""
+    rng = rng or random.Random(13)
+    day = day or datetime(2026, 10, 1, 9, 0, tzinfo=timezone.utc)
+    rail = "UPI"
+    out: list[Transaction] = []
+    for i in range(n_inbound):
+        ts = day + timedelta(minutes=rng.randint(0, 9 * 60))
+        out.append(Transaction(
+            transaction_id=_id("tx_biz_in", i), rail=rail, timestamp=ts,
+            source_institution=rng.choice(INSTITUTIONS), destination_institution=institution,
+            source_token=f"acct_biz_cust_{i:03d}", destination_token=business,
+            amount_bucket=_bucket_for_amount(rng.uniform(200, 20_000)),
+            reference_token=_tok(token_service, rail, f"BIZIN{i}", ts),
+            device_token=f"dev_pos_{business}", merchant_category="marketplace", transaction_type="P2M"))
+    ts = day + timedelta(hours=10)
+    out.append(Transaction(
+        transaction_id=_id("tx_biz_out", 0), rail="NEFT", timestamp=ts,
+        source_institution=institution, destination_institution="BANK_B",
+        source_token=business, destination_token="acct_biz_settlement",
+        amount_bucket="100k_500k", reference_token=_tok(token_service, "NEFT", "BIZOUT0", ts),
+        device_token=f"dev_{business}", merchant_category=None, transaction_type="P2P"))
+    return out
+
+
+# Accounts created by the lookalike generators above (used for ground-truth labels)
+LOOKALIKE_LEGIT_ACCOUNTS = (
+    "acct_shop_001", "acct_student_01", "acct_landlord_01",
+    "acct_refund_merchant", "acct_refund_cust",
+    "acct_gig_001", "acct_gig_platform", "acct_biz_001", "acct_biz_settlement",
+)
