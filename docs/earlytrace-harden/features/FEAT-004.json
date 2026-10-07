@@ -1,0 +1,24 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Close the adversarial, frontend, local/staging readiness, build, and documentation boundary so the hardened v2 is demonstrably safe without deployment or live integration.",
+  "status": "pending",
+  "steps": [
+    "Add deterministic adversarial/privacy/storage failure fixtures and tests for delayed hops, fan-in, structuring/camouflage, crypto replay/forge/expiry/revocation, partial/hub outage, token probing, wrong tenant, malformed/chunked/oversized bodies, feedback poisoning, calibration mismatch, and fenced SQLite failures; prove redacted logs/audits/errors and safe UNKNOWN/local-only outcomes.",
+    "Vendor and checksum Cytoscape 3.30.2, add frontend/earlytrace-replay.json, and update frontend/index.html to call the real v2 API with explicit OFFLINE SYNTHETIC REPLAY fallback, safe field rendering, no fake audit receipts, legacy Cases separation, and no runtime network dependency.",
+    "Implement sandbox/staging/production_unsupported profiles, readiness/version/health checks, strict CORS/body/request-ID/logging behavior, lock-aware Docker/Makefile local smoke, non-root/no-secret image checks, and no live_integrations=true path.",
+    "Update all eight named EarlyTrace documents with the same clearly labelled v1 baseline block, v2 pending/verified status, source/licence/checksum and AI/third-party disclosures, safety invariants, known false negatives/false friction, and no production/DPDP/live-bank/RMSE claims; add docs/readiness/frontend contract tests."
+  ],
+  "acceptance_criteria": [
+    "All adversarial paths fail closed or degrade according to the consent/evidence table and no raw identifier/token/PII enters logs, audits, fixtures, metrics, exports, or errors.",
+    "The frontend has no CDN/runtime network dependency, renders real v2 responses when available, uses only the deterministic non-raw replay when offline, and cannot invoke legacy case/order/freeze/reverse/reject/report routes.",
+    "Staging readiness fails for weak/default secrets, demo keys, missing institution-bound users, in-memory storage, unsafe CORS, live integrations, failed chains, or failed SQLite checks; version reports live_integrations=false without secrets.",
+    "All eight docs preserve exact audited v1 numbers and caveats while clearly distinguishing unimplemented or newly measured v2 results."
+  ],
+  "verification": [
+    "From trail\\backend run C:\\Users\\shyam.BATCONSOLE\\Desktop\\RAKSHAM\\trail\\.venv\\Scripts\\python.exe -m pytest -q tests/test_preauth_adversarial.py tests/test_preauth_privacy_leaks.py tests/test_frontend_contract.py tests/test_config_profiles.py tests/test_readiness.py tests/test_docs_contract.py.",
+    "From trail\\ run C:\\Users\\shyam.BATCONSOLE\\Desktop\\RAKSHAM\\trail\\.venv\\Scripts\\python.exe -m compileall -q backend and C:\\Users\\shyam.BATCONSOLE\\Desktop\\RAKSHAM\\trail\\.venv\\Scripts\\python.exe -m pytest -q backend/tests, then perform only the local Docker/liveness smoke."
+  ],
+  "blocked_reason": null,
+  "findings": "Resolves F-14 and F-15 and closes the operational/test/documentation portions of F-01, F-04, F-06, F-12, and F-13. It depends on the complete v2 API, store, evaluator, and contracts from FEAT-001 through FEAT-003."
+}
